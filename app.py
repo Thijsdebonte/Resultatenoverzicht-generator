@@ -369,20 +369,18 @@ def _results_page(pdf, v, data_template_bytes=None, coords=None):
         data_template_bytes.seek(0)
         pdf.image(data_template_bytes, x=0, y=0, w=PAGE_W, h=PAGE_H)
 
-    # ── Overlay: vacature title (header centre, green bold) ──
-    title_w = datum_x - titel_x - 4
+    # ── Overlay: vacature title (header, green bold) ─────────
     pdf.set_font('Helvetica', 'B', 11)
     pdf.set_text_color(*GREEN)
     pdf.set_xy(titel_x, titel_y)
-    pdf.cell(title_w, 6, v.get('titel', ''), align='C', ln=0)
+    pdf.cell(PAGE_W - titel_x, 6, v.get('titel', ''), align='L', ln=0)
 
     # ── Overlay: date range (header right, muted) ────────────
     date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
-    pill_w   = PAGE_W - datum_x - 6
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
     pdf.set_xy(datum_x, datum_y)
-    pdf.cell(pill_w, 6, date_str, align='C', ln=0)
+    pdf.cell(PAGE_W - datum_x, 6, date_str, align='L', ln=0)
 
     # ── Card layout (matches the template design) ────────────
     # 3 equal cards across full content width
@@ -392,12 +390,12 @@ def _results_page(pdf, v, data_template_bytes=None, coords=None):
     n2  = 2
     cw2 = (cw - gap * (n2 - 1)) / n2          # ≈ 136.5 mm each
 
-    # Helper: draw a value CENTRED horizontally in its card
+    # Helper: draw a value left-aligned at its stored x position
     def val(card_x, card_w, y, text):
         pdf.set_font('Helvetica', 'B', val_size)
         pdf.set_text_color(*DARK)
         pdf.set_xy(card_x, y)
-        pdf.cell(card_w, 10, text, align='C', ln=0)
+        pdf.cell(card_w, 10, text, align='L', ln=0)
 
     # ── Section 1 — Clarity (3 cards) ────────────────────────
     val(sessies_x,   cw1, sessies_y,   v.get('fmt_sessions',    '0'))

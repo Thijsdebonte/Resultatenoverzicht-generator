@@ -17,9 +17,9 @@ LGRAY  = (242, 242, 242)
 BORDER = (224, 224, 224)
 MUTED  = (110, 110, 110)
 
-# ── Page dimensions (16:9 landscape) ────────────────────────
+# ── Page dimensions (A4 landscape) ──────────────────────────
 PAGE_W = 297   # mm
-PAGE_H = 167   # mm
+PAGE_H = 210   # mm
 
 
 # ════════════════════════════════════════════════════════════
@@ -225,9 +225,10 @@ def _make_pdf(data):
 def _cover_page(pdf, data):
     pdf.add_page()
 
-    photo_w = round(PAGE_W * 0.55, 1)   # ≈ 163 mm  (right panel starts here)
+    # Dark panel starts at ~54 % of page width
+    photo_w = round(PAGE_W * 0.54, 1)   # ≈ 160 mm
     right_x = photo_w
-    right_w = PAGE_W - photo_w
+    right_w = PAGE_W - photo_w           # ≈ 137 mm
 
     # ── Full-page cover template (bundled static asset) ──────
     cover_tpl = _load_static_img('cover_template.jpg')
@@ -237,83 +238,82 @@ def _cover_page(pdf, data):
         # Minimal fallback when no template is provided
         pdf.set_fill_color(*DARK)
         pdf.rect(right_x, 0, right_w, PAGE_H, style='F')
-        pdf.set_font('Helvetica', 'B', 21)
+        pdf.set_font('Helvetica', 'B', 26)
         pdf.set_text_color(*WHITE)
-        pdf.set_xy(right_x + 10, 18)
-        pdf.multi_cell(right_w - 14, 11, 'Wervingsrapport\nvoor', align='L')
+        pdf.set_xy(right_x + 10, 55)
+        pdf.multi_cell(right_w - 14, 14, 'Wervingsrapport\nvoor', align='L')
 
-    # ── Overlay: client name (green bold, below "voor") ──────
-    # x aligns with the start of "Wervingsrapport" in the template (~166 mm)
-    # y sits just below "voor" which ends at roughly 49 mm
+    # ── Overlay: client name ──────────────────────────────────
+    # "Wervingsrapport voor" ends at roughly y=108 mm in the A4 template.
+    # Client name starts 8 mm below that.
     pdf.set_text_color(*GREEN)
     pdf.set_font('Helvetica', 'B', 28)
-    pdf.set_xy(166, 52)
-    pdf.multi_cell(right_w - 14, 13, data.get('klant_naam', ''), align='L')
+    pdf.set_xy(right_x + 10, 116)
+    pdf.multi_cell(right_w - 14, 14, data.get('klant_naam', ''), align='L')
 
 
 def _results_page(pdf, v, data_template_bytes=None):
     pdf.add_page()
 
-    BX      = 8
-    HDR_H   = 12
-    cw      = PAGE_W - BX * 2   # 281 mm
-    gap     = 3
+    # ── Layout constants (A4 landscape = 297 × 210 mm) ───────
+    BX    = 10   # left/right margin
+    HDR_H = 14   # header bar height
+    cw    = PAGE_W - BX * 2   # 277 mm
+    gap   = 4
 
     # ── Full-page data template ──────────────────────────────
     if data_template_bytes:
         data_template_bytes.seek(0)
         pdf.image(data_template_bytes, x=0, y=0, w=PAGE_W, h=PAGE_H)
 
-    # ── Overlay: function title (header, centred, green) ─────
-    title_x = BX + 28          # 36 mm
-    title_w = PAGE_W - title_x - 72   # 189 mm
+    # ── Overlay: vacature title (header centre, green bold) ──
+    title_x = BX + 30         # 40 mm  (past the logo)
+    title_w = PAGE_W - title_x - 80   # 177 mm
     pdf.set_font('Helvetica', 'B', 11)
     pdf.set_text_color(*GREEN)
-    pdf.set_xy(title_x, (HDR_H - 5) / 2)
-    pdf.cell(title_w, 5, v.get('titel', ''), align='C', ln=0)
+    pdf.set_xy(title_x, (HDR_H - 6) / 2)
+    pdf.cell(title_w, 6, v.get('titel', ''), align='C', ln=0)
 
-    # ── Overlay: date range (header, right, muted) ───────────
+    # ── Overlay: date range (header right pill, muted) ───────
     date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
-    pill_w = 66
-    pill_x = PAGE_W - pill_w - 6    # 225 mm
-    pill_y = (HDR_H - 6) / 2        # 3 mm
+    pill_w = 74
+    pill_x = PAGE_W - pill_w - 8    # 215 mm
+    pill_y = (HDR_H - 6) / 2
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
     pdf.set_xy(pill_x, pill_y)
     pdf.cell(pill_w, 6, date_str, align='C', ln=0)
 
-    # ── Helper: overlay a single metric value ────────────────
+    # ── Helper: overlay a single metric value (large, bold) ──
     def val(x, y, w, text):
-        pdf.set_font('Helvetica', 'B', 18)
+        pdf.set_font('Helvetica', 'B', 20)
         pdf.set_text_color(*DARK)
         pdf.set_xy(x, y)
-        pdf.cell(w, 9, text, align='L', ln=0)
+        pdf.cell(w, 10, text, align='L', ln=0)
 
-    # ── Section 1 — Clarity (3 equal cards) ─────────────────
-    # card_w = (281 - 3*2) / 3  ≈ 91.67 mm
-    # card top-y = 56.5,  value y = 56.5 + 14 = 70.5
-    n1   = 3
-    cw1  = (cw - gap * (n1 - 1)) / n1   # ≈ 91.67
-    vy1  = 56.5 + 14                     # 70.5
+    # ── Section 1 — Clarity (3 equal cards) ──────────────────
+    # Card tops at y≈74,  value (large number) at y≈99
+    n1  = 3
+    cw1 = (cw - gap * (n1 - 1)) / n1   # ≈ 89.67 mm
+    vy1 = 99.0
 
-    val(BX + 3,                  vy1, cw1 - 6, v.get('fmt_sessions',    '0'))
-    val(BX + (cw1 + gap) + 3,    vy1, cw1 - 6, v.get('fmt_time',        '0 sec'))
-    val(BX + 2 * (cw1 + gap) + 3, vy1, cw1 - 6, v.get('fmt_scroll',    '0%'))
+    val(BX + 3,                   vy1, cw1 - 6, v.get('fmt_sessions',    '0'))
+    val(BX + (cw1 + gap) + 3,     vy1, cw1 - 6, v.get('fmt_time',        '0 sec'))
+    val(BX + 2 * (cw1 + gap) + 3, vy1, cw1 - 6, v.get('fmt_scroll',      '0%'))
 
-    # ── Section 2 — Meta (2 equal cards) ────────────────────
-    # card_w = (281 - 3) / 2 = 139 mm
-    # card top-y = 91,  value y = 91 + 14 = 105
-    n2   = 2
-    cw2  = (cw - gap * (n2 - 1)) / n2   # 139
-    vy2  = 91.0 + 14                     # 105
+    # ── Section 2 — Meta (2 equal cards) ─────────────────────
+    # Card tops at y≈122,  value at y≈147
+    n2  = 2
+    cw2 = (cw - gap * (n2 - 1)) / n2   # ≈ 136.5 mm
+    vy2 = 147.0
 
-    val(BX + 3,              vy2, cw2 - 6, v.get('fmt_impressions', '0'))
-    val(BX + (cw2 + gap) + 3, vy2, cw2 - 6, v.get('fmt_reach',     '0'))
+    val(BX + 3,               vy2, cw2 - 6, v.get('fmt_impressions', '0'))
+    val(BX + (cw2 + gap) + 3, vy2, cw2 - 6, v.get('fmt_reach',       '0'))
 
-    # ── Section 3 — Sollicitaties (1 card, max_w=55) ─────────
-    # card top-y = 125.5,  value y = 125.5 + 14 = 139.5
-    max_cw3 = 55.0
-    vy3 = 125.5 + 14   # 139.5
+    # ── Section 3 — Sollicitaties (1 card) ───────────────────
+    # Card top at y≈170,  value at y≈192
+    max_cw3 = 60.0
+    vy3 = 192.0
 
     val(BX + 3, vy3, max_cw3 - 6, str(v.get('sollicitaties', 0)))
 

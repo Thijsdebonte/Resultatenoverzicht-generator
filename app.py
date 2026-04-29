@@ -273,7 +273,7 @@ def _results_page(pdf, v, data_template_bytes=None):
     pdf.cell(title_w, 5, v.get('titel', ''), align='C', ln=0)
 
     # ── Overlay: date range (header, right, muted) ───────────
-    date_str = f"{v.get('fmt_start', '')} – {v.get('fmt_end', '')}"
+    date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
     pill_w = 66
     pill_x = PAGE_W - pill_w - 6    # 225 mm
     pill_y = (HDR_H - 6) / 2        # 3 mm

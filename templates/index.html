@@ -572,44 +572,13 @@
   ════════════════════════════════════════ -->
   <div class="step-content" id="step-3">
     <div class="panel">
-      <div class="panel-title">Stap 3 — Klantgegevens</div>
-      <div class="panel-sub">Vul de klantnaam in en upload de afbeeldingen voor het rapport.</div>
+      <div class="panel-title">Stap 3 — Klantnaam</div>
+      <div class="panel-sub">Vul de naam in van de klant waarvoor je het rapport maakt.</div>
 
-      <div class="form-grid">
-
-        <!-- Klantnaam -->
-        <div class="form-group" style="grid-column: 1 / -1">
-          <label for="klant-naam">Klantnaam</label>
-          <div class="hint">Wordt getoond op de cover: "Wervingsrapport voor ..."</div>
-          <input type="text" id="klant-naam" placeholder="Bijv. De Jonge Veiligheid">
-        </div>
-
-        <!-- Cover foto -->
-        <div class="form-group">
-          <label>Cover foto <span style="color:#e53935">*</span></label>
-          <div class="hint">De foto die op de linkerkant van de cover verschijnt.</div>
-          <div class="img-upload-box" id="box-cover">
-            <input type="file" id="cover-file" accept="image/*">
-            <div style="font-size:24px;margin-bottom:6px">🖼️</div>
-            <div style="font-size:13px;font-weight:600">Klik om foto te uploaden</div>
-            <div style="font-size:11px;color:#888">JPG of PNG aanbevolen</div>
-            <img id="cover-preview" class="img-preview" src="" alt="cover preview">
-          </div>
-        </div>
-
-        <!-- Logo -->
-        <div class="form-group">
-          <label>Faam-logo <span style="color:#888;font-weight:400">(optioneel)</span></label>
-          <div class="hint">Logo linksboven op de resultaatpagina's. Als je niets uploadt, verschijnt "Faam." als tekst.</div>
-          <div class="img-upload-box" id="box-logo">
-            <input type="file" id="logo-file" accept="image/*">
-            <div style="font-size:24px;margin-bottom:6px">🏷️</div>
-            <div style="font-size:13px;font-weight:600">Klik om logo te uploaden</div>
-            <div style="font-size:11px;color:#888">PNG met transparantie aanbevolen</div>
-            <img id="logo-preview" class="img-preview" src="" alt="logo preview">
-          </div>
-        </div>
-
+      <div class="form-group">
+        <label for="klant-naam">Klantnaam</label>
+        <div class="hint">Verschijnt in groen op de cover: "Wervingsrapport voor ..."</div>
+        <input type="text" id="klant-naam" placeholder="Bijv. De Jonge Veiligheid">
       </div>
 
       <div id="step3-error" class="msg" style="display:none"></div>
@@ -855,8 +824,7 @@ function setupImgUpload(inputId, previewId, boxId) {
   });
 }
 
-setupImgUpload('cover-file', 'cover-preview', 'box-cover');
-setupImgUpload('logo-file', 'logo-preview', 'box-logo');
+// (no image uploads in step 3 — templates are bundled in the app)
 
 // ── STEP 4: Generate PDF ───────────────────────────────
 document.getElementById('btn-to-step4').addEventListener('click', () => generatePDF());
@@ -871,21 +839,9 @@ async function generatePDF() {
     return;
   }
 
-  const coverFile = document.getElementById('cover-file').files[0];
-  if (!coverFile) {
-    showError('step3-error', '❌ Upload een cover foto.');
-    return;
-  }
-
   showLoading('PDF wordt gegenereerd…');
 
   try {
-    // Compress before sending — Vercel has a 4.5 MB request body limit
-    showLoading('Afbeeldingen verkleinen…');
-    const coverPhoto = await compressImage(coverFile, 1400, 0.80, 'image/jpeg');
-    const logoFile = document.getElementById('logo-file').files[0];
-    const logo = logoFile ? await compressImage(logoFile, 500, 0.90, 'image/png') : null;
-    showLoading('PDF wordt gegenereerd…');
 
     const { clarity, meta } = parsedData;
     const pages = (clarity && clarity.pages) || [];
@@ -912,8 +868,6 @@ async function generatePDF() {
 
     const payload = {
       klant_naam: klantNaam,
-      cover_photo: coverPhoto,
-      logo: logo,
       vacatures: vacatures,
     };
 

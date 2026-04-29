@@ -51,33 +51,6 @@ def fmt_decimal(n, decimals=2):
         return str(n)
 
 
-def timeline_data(start_str, end_str):
-    """Returns positions (0-100) on a year timeline for start/end dates."""
-    try:
-        start = datetime.strptime(start_str, '%Y-%m-%d').date()
-        end   = datetime.strptime(end_str,   '%Y-%m-%d').date()
-        year  = start.year
-        y0    = date(year, 1, 1)
-        y1    = date(year + 1, 1, 1)
-        total = (y1 - y0).days
-
-        def pos(d):
-            return round((d - y0).days / total * 100, 2)
-
-        months = [{'pos': pos(date(year, m, 1)), 'name': DUTCH_MONTHS[m - 1]}
-                  for m in range(1, 13)]
-
-        return {
-            'year':      year,
-            'next_year': year + 1,
-            'start_pos': pos(start),
-            'end_pos':   pos(end),
-            'months':    months,
-        }
-    except Exception:
-        return None
-
-
 def _decode_img(data_url):
     """Decode a base64 data-URL to a BytesIO object."""
     if not data_url or ',' not in data_url:
@@ -87,6 +60,15 @@ def _decode_img(data_url):
         return io.BytesIO(base64.b64decode(data))
     except Exception:
         return None
+
+
+def _load_static_img(filename):
+    """Load a bundled template image from the static/ folder."""
+    path = os.path.join(os.path.dirname(__file__), 'static', filename)
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            return io.BytesIO(f.read())
+    return None
 
 
 # ════════════════════════════════════════════════════════════
@@ -196,16 +178,32 @@ def parse_meta_csv(content):
 
 
 # ════════════════════════════════════════════════════════════
-#  PDF GENERATION  (fpdf2 — pure Python, works on Vercel)
+#  PDF GENERATION — Template overlay approach
+#
+#  Both cover and data pages use a pre-designed JPG as full-
+#  page background; only dynamic values are overlaid as text
+#  at fixed coordinates.
+#
+#  Cover overlay:
+#    • Client name  — x=173, y=42  (below "voor", green bold 24)
+#
+#  Data page overlays  (page 297 × 167 mm):
+#    Header:
+#      • Job title   — x=36,  y=3.5,  w=189,  green bold 11, centred
+#      • Date range  — x=225, y=3,    w=66,   muted 7, centred
+#    Section 1 — Clarity (3 equal cards, card_h=24):
+#      card_w ≈ 91.67 mm,  value_y = 70.5
+#      • Sessies      x= 11,    y=70.5
+#      • Gem. tijd    x=105.7,  y=70.5
+#      • Scroll       x=200.3,  y=70.5
+#    Section 2 — Meta (2 equal cards):
+#      card_w = 139 mm,  value_y = 105
+#      • Weergaven    x= 11,    y=105
+#      • Bereik       x=153,    y=105
+#    Section 3 — Sollicitaties (1 card, max_w=55):
+#      value_y = 139.5
+#      • Sollicitaties x=11, y=139.5
 # ════════════════════════════════════════════════════════════
-
-def _rounded_rect(pdf, x, y, w, h, r, corners='1234', style='F'):
-    """Draw a rounded rect; falls back to plain rect if fpdf2 version is too old."""
-    try:
-        pdf.rounded_rect(x, y, w, h, r, corners, style=style)
-    except AttributeError:
-        pdf.rect(x, y, w, h, style=style)
-
 
 def _make_pdf(data):
     from fpdf import FPDF
@@ -216,9 +214,10 @@ def _make_pdf(data):
 
     _cover_page(pdf, data)
 
-    logo_bytes = _decode_img(data.get('logo'))
+    # Load the shared data-page template once; reused for every vacature
+    data_tpl = _load_static_img('data_template.jpg')
     for v in data.get('vacatures', []):
-        _results_page(pdf, v, logo_bytes)
+        _results_page(pdf, v, data_tpl)
 
     return bytes(pdf.output())
 
@@ -226,235 +225,97 @@ def _make_pdf(data):
 def _cover_page(pdf, data):
     pdf.add_page()
 
-    photo_w = round(PAGE_W * 0.55, 1)   # ~163 mm
+    photo_w = round(PAGE_W * 0.55, 1)   # ≈ 163 mm  (right panel starts here)
     right_x = photo_w
-    right_w = PAGE_W - photo_w           # ~134 mm
+    right_w = PAGE_W - photo_w
 
-    # Dark right panel
-    pdf.set_fill_color(*DARK)
-    pdf.rect(right_x, 0, right_w, PAGE_H, style='F')
-
-    # Cover photo (drawn after the dark panel so it overlaps only the left side)
-    cover = _decode_img(data.get('cover_photo'))
-    if cover:
-        pdf.image(cover, x=0, y=0, w=photo_w, h=PAGE_H)
-
-    # "Faam." wordmark on the photo
-    pdf.set_font('Helvetica', 'B', 52)
-    pdf.set_text_color(*WHITE)
-    pdf.set_xy(8, PAGE_H - 30)
-    pdf.cell(photo_w - 30, 22, 'Faam.', ln=0)
-
-    # Green decorative circle (to the right of the period)
-    dot = 14
-    pdf.set_fill_color(*GREEN)
-    pdf.ellipse(photo_w - 22, PAGE_H - 24, dot, dot, style='F')
-
-    # Title on right side
-    pdf.set_text_color(*WHITE)
-    pdf.set_font('Helvetica', 'B', 21)
-    pdf.set_xy(right_x + 10, 18)
-    pdf.multi_cell(right_w - 14, 11, 'Wervingsrapport\nvoor', align='L')
-
-    # Client name in green
-    pdf.set_text_color(*GREEN)
-    pdf.set_font('Helvetica', 'B', 24)
-    pdf.set_xy(right_x + 10, pdf.get_y() + 2)
-    pdf.multi_cell(right_w - 14, 12, data.get('klant_naam', ''), align='L')
-
-    # Contact info (bottom-right)
-    pdf.set_font('Helvetica', '', 8)
-    contact_y = PAGE_H - 28
-    for label, value in [
-        ('Telefoon', '0342-420741'),
-        ('E-mail',   'marketing@faam.nl'),
-        ('Website',  'www.faam.nl'),
-    ]:
-        pdf.set_xy(right_x + 10, contact_y)
-        pdf.set_text_color(*GREEN)
-        pdf.cell(22, 5.5, label, ln=0)
-        pdf.set_text_color(*WHITE)
-        pdf.cell(right_w - 36, 5.5, value, ln=1)
-        contact_y += 6
-
-
-def _results_page(pdf, v, logo_bytes=None):
-    pdf.add_page()
-    BX = 8   # body left/right margin (mm)
-    HDR_H = 12
-
-    # ── Header ──────────────────────────────────────────────
-    if logo_bytes:
-        logo_bytes.seek(0)
-        pdf.image(logo_bytes, x=BX, y=2, h=8, w=0)
+    # ── Full-page cover template (bundled static asset) ──────
+    cover_tpl = _load_static_img('cover_template.jpg')
+    if cover_tpl:
+        pdf.image(cover_tpl, x=0, y=0, w=PAGE_W, h=PAGE_H)
     else:
-        pdf.set_font('Helvetica', 'B', 13)
-        pdf.set_text_color(*DARK)
-        pdf.set_xy(BX, (HDR_H - 5) / 2)
-        pdf.cell(18, 5, 'Faam', ln=0)
-        pdf.set_text_color(*GREEN)
-        pdf.cell(5, 5, '.', ln=0)
+        # Minimal fallback when no template is provided
+        pdf.set_fill_color(*DARK)
+        pdf.rect(right_x, 0, right_w, PAGE_H, style='F')
+        pdf.set_font('Helvetica', 'B', 21)
+        pdf.set_text_color(*WHITE)
+        pdf.set_xy(right_x + 10, 18)
+        pdf.multi_cell(right_w - 14, 11, 'Wervingsrapport\nvoor', align='L')
 
-    # Function title (centre, green)
-    title_x = BX + 28
-    title_w = PAGE_W - title_x - 72
+    # ── Overlay: client name (green bold, below "voor") ──────
+    # x aligns with the start of "Wervingsrapport" in the template (~166 mm)
+    # y sits just below "voor" which ends at roughly 49 mm
+    pdf.set_text_color(*GREEN)
+    pdf.set_font('Helvetica', 'B', 28)
+    pdf.set_xy(166, 52)
+    pdf.multi_cell(right_w - 14, 13, data.get('klant_naam', ''), align='L')
+
+
+def _results_page(pdf, v, data_template_bytes=None):
+    pdf.add_page()
+
+    BX      = 8
+    HDR_H   = 12
+    cw      = PAGE_W - BX * 2   # 281 mm
+    gap     = 3
+
+    # ── Full-page data template ──────────────────────────────
+    if data_template_bytes:
+        data_template_bytes.seek(0)
+        pdf.image(data_template_bytes, x=0, y=0, w=PAGE_W, h=PAGE_H)
+
+    # ── Overlay: function title (header, centred, green) ─────
+    title_x = BX + 28          # 36 mm
+    title_w = PAGE_W - title_x - 72   # 189 mm
     pdf.set_font('Helvetica', 'B', 11)
     pdf.set_text_color(*GREEN)
     pdf.set_xy(title_x, (HDR_H - 5) / 2)
     pdf.cell(title_w, 5, v.get('titel', ''), align='C', ln=0)
 
-    # Date-range pill (right)
-    date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
+    # ── Overlay: date range (header, right, muted) ───────────
+    date_str = f"{v.get('fmt_start', '')} – {v.get('fmt_end', '')}"
     pill_w = 66
-    pill_h = 6
-    pill_x = PAGE_W - pill_w - 6
-    pill_y = (HDR_H - pill_h) / 2
-    pdf.set_fill_color(240, 240, 240)
-    pdf.set_draw_color(*BORDER)
-    pdf.set_line_width(0.2)
-    _rounded_rect(pdf,pill_x, pill_y, pill_w, pill_h, 1.5, '1234', style='FD')
+    pill_x = PAGE_W - pill_w - 6    # 225 mm
+    pill_y = (HDR_H - 6) / 2        # 3 mm
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
     pdf.set_xy(pill_x, pill_y)
-    pdf.cell(pill_w, pill_h, date_str, align='C', ln=0)
+    pdf.cell(pill_w, 6, date_str, align='C', ln=0)
 
-    # Header divider
-    pdf.set_draw_color(*BORDER)
-    pdf.set_line_width(0.3)
-    pdf.line(0, HDR_H, PAGE_W, HDR_H)
-
-    # ── Body ────────────────────────────────────────────────
-    y = HDR_H + 3
-
-    # Heading
-    pdf.set_font('Helvetica', 'B', 17)
-    pdf.set_text_color(*DARK)
-    pdf.set_xy(BX, y)
-    pdf.cell(PAGE_W - BX * 2, 9, 'Een overzicht van de', ln=0)
-    y += 9
-    pdf.set_xy(BX, y)
-    pdf.cell(PAGE_W - BX * 2, 9, 'belangrijkste resultaten.', ln=0)
-    y += 11
-
-    # Timeline
-    tl = v.get('timeline')
-    if tl:
-        y = _draw_timeline(pdf, tl, y, BX)
-    y += 2
-
-    # Section 1 — Clarity / Faam.nl
-    y = _draw_section(pdf, 'Algemene informatie Faam.nl', [
-        ('Hoeveel mensen op de vacaturepagina zijn gekomen',
-         v.get('fmt_sessions', '0')),
-        ('Hoelang mensen gemiddeld op de pagina hebben gezeten',
-         v.get('fmt_time', '0 sec')),
-        ('Hoe ver mensen gemiddeld op de pagina scrollen',
-         v.get('fmt_scroll', '0%')),
-    ], y, BX)
-
-    y += 2
-
-    # Section 2 — Meta ads
-    y = _draw_section(pdf, 'Algemene informatie vacatureadvertenties', [
-        ('Hoe vaak vacatureadvertenties zijn weergegeven',
-         v.get('fmt_impressions', '0')),
-        ('Hoeveel unieke mensen de advertentie hebben gezien',
-         v.get('fmt_reach', '0')),
-    ], y, BX)
-
-    y += 2
-
-    # Section 3 — Sollicitaties
-    _draw_section(pdf, 'Sollicitaties', [
-        ('Aantal sollicitaties', str(v.get('sollicitaties', 0))),
-    ], y, BX, max_card_w=55)
-
-
-def _draw_timeline(pdf, tl, y, bx):
-    lx  = bx + 16
-    lw  = PAGE_W - bx - 16 - bx
-    ly  = y + 5
-
-    # Year labels
-    pdf.set_font('Helvetica', '', 7)
-    pdf.set_text_color(*MUTED)
-    pdf.set_xy(bx, y + 2)
-    pdf.cell(16, 4, str(tl['year']), ln=0)
-    pdf.set_xy(PAGE_W - bx - 14, y + 2)
-    pdf.cell(14, 4, str(tl['next_year']), align='R', ln=0)
-
-    # Base line
-    pdf.set_draw_color(180, 180, 180)
-    pdf.set_line_width(0.4)
-    pdf.line(lx, ly, lx + lw, ly)
-
-    # Month ticks + labels
-    for m in tl['months']:
-        mx = lx + (m['pos'] / 100) * lw
-        pdf.set_draw_color(175, 175, 175)
-        pdf.set_line_width(0.15)
-        pdf.line(mx, ly - 1.2, mx, ly + 1.2)
-        pdf.set_font('Helvetica', '', 5.5)
-        pdf.set_text_color(*MUTED)
-        pdf.set_xy(mx - 3.5, ly + 1.8)
-        pdf.cell(7, 3, m['name'], align='C', ln=0)
-
-    # Start / end dots
-    pdf.set_fill_color(*GREEN)
-    pdf.set_draw_color(*WHITE)
-    pdf.set_line_width(0.4)
-    for pos_pct in (tl['start_pos'], tl['end_pos']):
-        mx = lx + (pos_pct / 100) * lw
-        r = 2
-        pdf.ellipse(mx - r, ly - r, r * 2, r * 2, style='FD')
-
-    return ly + 6   # new y position
-
-
-def _draw_section(pdf, title, metrics, y, bx, max_card_w=None):
-    cw = PAGE_W - bx * 2   # content width
-
-    # Divider line + title
-    pdf.set_draw_color(*BORDER)
-    pdf.set_line_width(0.25)
-    pdf.line(bx, y, PAGE_W - bx, y)
-    y += 1.5
-
-    pdf.set_font('Helvetica', 'B', 7.5)
-    pdf.set_text_color(*DARK)
-    pdf.set_xy(bx, y)
-    pdf.cell(cw, 5, title, ln=0)
-    y += 7
-
-    # Cards
-    n      = len(metrics)
-    gap    = 3
-    card_w = (cw - gap * (n - 1)) / n
-    if max_card_w:
-        card_w = min(float(max_card_w), card_w)
-    card_h = 24
-
-    for i, (label, value) in enumerate(metrics):
-        cx = bx + i * (card_w + gap)
-        cy = y
-
-        # Card background
-        pdf.set_fill_color(*LGRAY)
-        _rounded_rect(pdf,cx, cy, card_w, card_h, 2, '1234', style='F')
-
-        # Label (small, multi-line)
-        pdf.set_font('Helvetica', '', 5.5)
-        pdf.set_text_color(80, 80, 80)
-        pdf.set_xy(cx + 3, cy + 3)
-        pdf.multi_cell(card_w - 6, 3.5, label, align='L')
-
-        # Value (large, bold)
+    # ── Helper: overlay a single metric value ────────────────
+    def val(x, y, w, text):
         pdf.set_font('Helvetica', 'B', 18)
         pdf.set_text_color(*DARK)
-        pdf.set_xy(cx + 3, cy + card_h - 10)
-        pdf.cell(card_w - 6, 9, value, align='L', ln=0)
+        pdf.set_xy(x, y)
+        pdf.cell(w, 9, text, align='L', ln=0)
 
-    return y + card_h   # new y position
+    # ── Section 1 — Clarity (3 equal cards) ─────────────────
+    # card_w = (281 - 3*2) / 3  ≈ 91.67 mm
+    # card top-y = 56.5,  value y = 56.5 + 14 = 70.5
+    n1   = 3
+    cw1  = (cw - gap * (n1 - 1)) / n1   # ≈ 91.67
+    vy1  = 56.5 + 14                     # 70.5
+
+    val(BX + 3,                  vy1, cw1 - 6, v.get('fmt_sessions',    '0'))
+    val(BX + (cw1 + gap) + 3,    vy1, cw1 - 6, v.get('fmt_time',        '0 sec'))
+    val(BX + 2 * (cw1 + gap) + 3, vy1, cw1 - 6, v.get('fmt_scroll',    '0%'))
+
+    # ── Section 2 — Meta (2 equal cards) ────────────────────
+    # card_w = (281 - 3) / 2 = 139 mm
+    # card top-y = 91,  value y = 91 + 14 = 105
+    n2   = 2
+    cw2  = (cw - gap * (n2 - 1)) / n2   # 139
+    vy2  = 91.0 + 14                     # 105
+
+    val(BX + 3,              vy2, cw2 - 6, v.get('fmt_impressions', '0'))
+    val(BX + (cw2 + gap) + 3, vy2, cw2 - 6, v.get('fmt_reach',     '0'))
+
+    # ── Section 3 — Sollicitaties (1 card, max_w=55) ─────────
+    # card top-y = 125.5,  value y = 125.5 + 14 = 139.5
+    max_cw3 = 55.0
+    vy3 = 125.5 + 14   # 139.5
+
+    val(BX + 3, vy3, max_cw3 - 6, str(v.get('sollicitaties', 0)))
 
 
 # ════════════════════════════════════════════════════════════
@@ -488,7 +349,7 @@ def generate():
     try:
         data = request.json
 
-        # Enrich each vacature with formatted values + timeline
+        # Enrich each vacature with formatted values
         for v in data.get('vacatures', []):
             v['fmt_sessions']    = fmt_number(v.get('sessions', 0))
             v['fmt_impressions'] = fmt_number(v.get('impressions', 0))
@@ -497,7 +358,6 @@ def generate():
             v['fmt_time']        = f"{v.get('avg_time', 0)} sec"
             v['fmt_start']       = fmt_date(v.get('start_date', ''))
             v['fmt_end']         = fmt_date(v.get('end_date', ''))
-            v['timeline']        = timeline_data(v.get('start_date', ''), v.get('end_date', ''))
 
         pdf_bytes = _make_pdf(data)
 

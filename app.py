@@ -5,6 +5,39 @@ from datetime import datetime, date
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'faam-dev-secret-2024')
 
+# ════════════════════════════════════════════════════════════
+#  OVERLAY COÖRDINATEN  ← pas hier aan om tekst te verplaatsen
+#
+#  Alles in millimeters (mm) vanaf de linkerbovenhoek.
+#  x = afstand van links,  y = afstand van boven.
+#  Gebruik /calibreer in de browser om een hulpraster te zien.
+# ════════════════════════════════════════════════════════════
+
+# -- Coverpagina ------------------------------------------
+COVER_NAAM_X    = 168   # klantnaam: afstand van links (mm)
+COVER_NAAM_Y    = 116   # klantnaam: afstand van boven (mm)
+COVER_NAAM_SIZE =  28   # lettergrootte (pt)
+
+# -- Datapagina: header -----------------------------------
+DATA_TITEL_X    =  40   # vacaturetitel: afstand van links
+DATA_TITEL_Y    =   4   # vacaturetitel: afstand van boven
+DATA_DATUM_X    = 215   # datumreeks: afstand van links
+DATA_DATUM_Y    =   4   # datumreeks: afstand van boven
+
+# -- Datapagina: kaartwaarden (grote getallen) ------------
+DATA_SESSIES_X   =  13  # sessies
+DATA_SESSIES_Y   =  99
+DATA_TIJD_X      = 103  # gemiddelde tijd
+DATA_TIJD_Y      =  99
+DATA_SCROLL_X    = 197  # scroll-diepte
+DATA_SCROLL_Y    =  99
+DATA_WEERGAVEN_X =  13  # Meta weergaven
+DATA_WEERGAVEN_Y = 147
+DATA_BEREIK_X    = 153  # Meta bereik
+DATA_BEREIK_Y    = 147
+DATA_SOLLICIT_X  =  13  # sollicitaties
+DATA_SOLLICIT_Y  = 192
+
 # ── Dutch month abbreviations ────────────────────────────────
 DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun',
                 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
@@ -244,12 +277,10 @@ def _cover_page(pdf, data):
         pdf.multi_cell(right_w - 14, 14, 'Wervingsrapport\nvoor', align='L')
 
     # ── Overlay: client name ──────────────────────────────────
-    # "Wervingsrapport voor" ends at roughly y=108 mm in the A4 template.
-    # Client name starts 8 mm below that.
     pdf.set_text_color(*GREEN)
-    pdf.set_font('Helvetica', 'B', 28)
-    pdf.set_xy(right_x + 10, 116)
-    pdf.multi_cell(right_w - 14, 14, data.get('klant_naam', ''), align='L')
+    pdf.set_font('Helvetica', 'B', COVER_NAAM_SIZE)
+    pdf.set_xy(COVER_NAAM_X, COVER_NAAM_Y)
+    pdf.multi_cell(PAGE_W - COVER_NAAM_X - 8, COVER_NAAM_SIZE * 0.5, data.get('klant_naam', ''), align='L')
 
 
 def _results_page(pdf, v, data_template_bytes=None):
@@ -267,55 +298,38 @@ def _results_page(pdf, v, data_template_bytes=None):
         pdf.image(data_template_bytes, x=0, y=0, w=PAGE_W, h=PAGE_H)
 
     # ── Overlay: vacature title (header centre, green bold) ──
-    title_x = BX + 30         # 40 mm  (past the logo)
-    title_w = PAGE_W - title_x - 80   # 177 mm
+    title_w = DATA_DATUM_X - DATA_TITEL_X - 4
     pdf.set_font('Helvetica', 'B', 11)
     pdf.set_text_color(*GREEN)
-    pdf.set_xy(title_x, (HDR_H - 6) / 2)
+    pdf.set_xy(DATA_TITEL_X, DATA_TITEL_Y)
     pdf.cell(title_w, 6, v.get('titel', ''), align='C', ln=0)
 
-    # ── Overlay: date range (header right pill, muted) ───────
+    # ── Overlay: date range (header right, muted) ────────────
     date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
-    pill_w = 74
-    pill_x = PAGE_W - pill_w - 8    # 215 mm
-    pill_y = (HDR_H - 6) / 2
+    pill_w   = PAGE_W - DATA_DATUM_X - 6
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
-    pdf.set_xy(pill_x, pill_y)
+    pdf.set_xy(DATA_DATUM_X, DATA_DATUM_Y)
     pdf.cell(pill_w, 6, date_str, align='C', ln=0)
 
-    # ── Helper: overlay a single metric value (large, bold) ──
-    def val(x, y, w, text):
+    # ── Helper: overlay a metric value (large bold number) ───
+    def val(x, y, text):
         pdf.set_font('Helvetica', 'B', 20)
         pdf.set_text_color(*DARK)
         pdf.set_xy(x, y)
-        pdf.cell(w, 10, text, align='L', ln=0)
+        pdf.cell(80, 10, text, align='L', ln=0)
 
-    # ── Section 1 — Clarity (3 equal cards) ──────────────────
-    # Card tops at y≈74,  value (large number) at y≈99
-    n1  = 3
-    cw1 = (cw - gap * (n1 - 1)) / n1   # ≈ 89.67 mm
-    vy1 = 99.0
+    # ── Section 1 — Clarity ──────────────────────────────────
+    val(DATA_SESSIES_X,   DATA_SESSIES_Y,   v.get('fmt_sessions',    '0'))
+    val(DATA_TIJD_X,      DATA_TIJD_Y,      v.get('fmt_time',        '0 sec'))
+    val(DATA_SCROLL_X,    DATA_SCROLL_Y,    v.get('fmt_scroll',      '0%'))
 
-    val(BX + 3,                   vy1, cw1 - 6, v.get('fmt_sessions',    '0'))
-    val(BX + (cw1 + gap) + 3,     vy1, cw1 - 6, v.get('fmt_time',        '0 sec'))
-    val(BX + 2 * (cw1 + gap) + 3, vy1, cw1 - 6, v.get('fmt_scroll',      '0%'))
+    # ── Section 2 — Meta ─────────────────────────────────────
+    val(DATA_WEERGAVEN_X, DATA_WEERGAVEN_Y, v.get('fmt_impressions', '0'))
+    val(DATA_BEREIK_X,    DATA_BEREIK_Y,    v.get('fmt_reach',       '0'))
 
-    # ── Section 2 — Meta (2 equal cards) ─────────────────────
-    # Card tops at y≈122,  value at y≈147
-    n2  = 2
-    cw2 = (cw - gap * (n2 - 1)) / n2   # ≈ 136.5 mm
-    vy2 = 147.0
-
-    val(BX + 3,               vy2, cw2 - 6, v.get('fmt_impressions', '0'))
-    val(BX + (cw2 + gap) + 3, vy2, cw2 - 6, v.get('fmt_reach',       '0'))
-
-    # ── Section 3 — Sollicitaties (1 card) ───────────────────
-    # Card top at y≈170,  value at y≈192
-    max_cw3 = 60.0
-    vy3 = 192.0
-
-    val(BX + 3, vy3, max_cw3 - 6, str(v.get('sollicitaties', 0)))
+    # ── Section 3 — Sollicitaties ─────────────────────────────
+    val(DATA_SOLLICIT_X,  DATA_SOLLICIT_Y,  str(v.get('sollicitaties', 0)))
 
 
 # ════════════════════════════════════════════════════════════
@@ -375,6 +389,83 @@ def generate():
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
+@app.route('/calibreer')
+def calibreer():
+    """Genereert een hulp-PDF met mm-raster en gekleurde markeringen
+    op alle overlay-posities, zodat je coördinaten makkelijk kunt afstellen."""
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        return 'fpdf2 niet geïnstalleerd', 500
+
+    pdf = FPDF(unit='mm', format=(PAGE_W, PAGE_H))
+    pdf.set_auto_page_break(False)
+    pdf.set_margins(0, 0, 0)
+
+    def draw_grid_and_markers(markers):
+        # Lichtgrijs raster elke 10 mm
+        pdf.set_draw_color(200, 200, 200)
+        pdf.set_line_width(0.1)
+        for x in range(0, PAGE_W + 1, 10):
+            pdf.line(x, 0, x, PAGE_H)
+        for y in range(0, PAGE_H + 1, 10):
+            pdf.line(0, y, PAGE_W, y)
+        # Donkerder lijn elke 50 mm
+        pdf.set_draw_color(150, 150, 150)
+        pdf.set_line_width(0.3)
+        for x in range(0, PAGE_W + 1, 50):
+            pdf.line(x, 0, x, PAGE_H)
+        for y in range(0, PAGE_H + 1, 50):
+            pdf.line(0, y, PAGE_W, y)
+        # Mm-labels elke 10 mm
+        pdf.set_font('Helvetica', '', 4)
+        pdf.set_text_color(130, 130, 130)
+        for x in range(10, PAGE_W, 10):
+            pdf.set_xy(x + 0.5, 1)
+            pdf.cell(8, 3, str(x), ln=0)
+        for y in range(10, PAGE_H, 10):
+            pdf.set_xy(1, y + 0.5)
+            pdf.cell(8, 3, str(y), ln=0)
+        # Gekleurde stippen + labels op overlay-posities
+        for (x, y, label, color) in markers:
+            r, g, b = color
+            pdf.set_fill_color(r, g, b)
+            pdf.ellipse(x - 2, y - 2, 4, 4, style='F')
+            pdf.set_font('Helvetica', 'B', 5)
+            pdf.set_text_color(r, g, b)
+            pdf.set_xy(x + 2.5, y - 2)
+            pdf.cell(40, 4, f'{label} ({x},{y})', ln=0)
+
+    # ── Pagina 1: coverpagina ────────────────────────────────
+    pdf.add_page()
+    cover_tpl = _load_static_img('cover_template.jpg')
+    if cover_tpl:
+        pdf.image(cover_tpl, x=0, y=0, w=PAGE_W, h=PAGE_H)
+    draw_grid_and_markers([
+        (COVER_NAAM_X, COVER_NAAM_Y, 'KLANTNAAM', (39, 174, 96)),
+    ])
+
+    # ── Pagina 2: datapagina ─────────────────────────────────
+    pdf.add_page()
+    data_tpl = _load_static_img('data_template.jpg')
+    if data_tpl:
+        pdf.image(data_tpl, x=0, y=0, w=PAGE_W, h=PAGE_H)
+    draw_grid_and_markers([
+        (DATA_TITEL_X,    DATA_TITEL_Y,    'TITEL',      (39, 174, 96)),
+        (DATA_DATUM_X,    DATA_DATUM_Y,    'DATUM',      (39, 174, 96)),
+        (DATA_SESSIES_X,  DATA_SESSIES_Y,  'SESSIES',    (230, 80,  80)),
+        (DATA_TIJD_X,     DATA_TIJD_Y,     'TIJD',       (230, 80,  80)),
+        (DATA_SCROLL_X,   DATA_SCROLL_Y,   'SCROLL',     (230, 80,  80)),
+        (DATA_WEERGAVEN_X,DATA_WEERGAVEN_Y,'WEERGAVEN',  (80,  80, 220)),
+        (DATA_BEREIK_X,   DATA_BEREIK_Y,   'BEREIK',     (80,  80, 220)),
+        (DATA_SOLLICIT_X, DATA_SOLLICIT_Y, 'SOLLICIT.',  (180, 80, 220)),
+    ])
+
+    buf = io.BytesIO(bytes(pdf.output()))
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name='calibreer.pdf')
 
 
 if __name__ == '__main__':

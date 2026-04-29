@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* ── Page setup ──────────────────────────────────────── */
+  @page {
+    size: 297mm 167mm;
+    margin: 0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #111;
+  }
+
+  /* ── Shared page shell ───────────────────────────────── */
+  .page {
+    width: 297mm;
+    height: 167mm;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .page + .page {
+    page-break-before: always;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     COVER PAGE
+  ═══════════════════════════════════════════════════════ */
+  .cover-page {
+    display: flex;
+    width: 297mm;
+    height: 167mm;
+  }
+
+  /* Left: photo */
+  .cover-photo {
+    width: 55%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-color: #444;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Faam wordmark over the photo */
+  .cover-wordmark {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 8mm 4mm 8mm;
+    font-size: 52pt;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -1pt;
+    line-height: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 3mm;
+  }
+
+  .cover-wordmark .green-dot {
+    display: inline-block;
+    width: 14mm;
+    height: 14mm;
+    background: #27AE60;
+    border-radius: 50%;
+    margin-bottom: 2mm;
+    flex-shrink: 0;
+  }
+
+  /* Right: dark panel */
+  .cover-right {
+    width: 45%;
+    height: 100%;
+    background: #1A1A1A;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12mm 10mm 8mm 10mm;
+  }
+
+  .cover-title {
+    font-size: 26pt;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .cover-title .accent {
+    color: #27AE60;
+  }
+
+  .cover-contact {
+    font-size: 8pt;
+    color: #fff;
+    line-height: 1.9;
+  }
+
+  .cover-contact .label {
+    display: inline-block;
+    width: 18mm;
+    color: #27AE60;
+    font-weight: 600;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     RESULTS PAGE
+  ═══════════════════════════════════════════════════════ */
+  .results-page {
+    background: #fff;
+    padding: 0;
+  }
+
+  /* Header bar */
+  .rp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4mm 8mm 3mm 6mm;
+    border-bottom: 1px solid #e0e0e0;
+    height: 14mm;
+  }
+
+  .rp-logo {
+    height: 8mm;
+    width: auto;
+  }
+
+  .rp-logo-text {
+    font-size: 14pt;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: -0.5pt;
+    line-height: 1;
+  }
+
+  .rp-logo-text .dot {
+    color: #27AE60;
+  }
+
+  .rp-function {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #27AE60;
+    text-align: center;
+    flex: 1;
+    padding: 0 6mm;
+  }
+
+  .rp-daterange {
+    font-size: 7.5pt;
+    color: #555;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4pt;
+    padding: 2pt 6pt;
+    white-space: nowrap;
+  }
+
+  /* Main content */
+  .rp-body {
+    padding: 4mm 8mm 4mm 8mm;
+  }
+
+  .rp-heading {
+    font-size: 18pt;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #111;
+    margin-bottom: 3mm;
+  }
+
+  /* ── Timeline ──────────────────────────────────────── */
+  .timeline-wrap {
+    margin-bottom: 4mm;
+  }
+
+  .timeline-svg {
+    width: 100%;
+    height: 28pt;
+    overflow: visible;
+  }
+
+  /* ── Sections ─────────────────────────────────────── */
+  .section-title {
+    font-size: 7.5pt;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 2.5mm;
+    padding-top: 2mm;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .cards {
+    display: flex;
+    gap: 3mm;
+    margin-bottom: 1mm;
+  }
+
+  .card {
+    background: #F2F2F2;
+    border-radius: 4pt;
+    padding: 3mm 4mm 3mm 4mm;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 22mm;
+  }
+
+  .card-label {
+    font-size: 6pt;
+    color: #333;
+    line-height: 1.35;
+    margin-bottom: 2mm;
+  }
+
+  .card-value {
+    font-size: 20pt;
+    font-weight: 700;
+    color: #111;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     COVER PAGE
+══════════════════════════════════════════════════════ -->
+<div class="page cover-page">
+
+  <div class="cover-photo">
+    {% if cover_photo %}
+    <img src="{{ cover_photo }}" alt="">
+    {% endif %}
+    <div class="cover-wordmark">
+      <span>Faam.</span>
+      <span class="green-dot"></span>
+    </div>
+  </div>
+
+  <div class="cover-right">
+    <div class="cover-title">
+      Wervingsrapport<br>voor<br>
+      <span class="accent">{{ klant_naam }}</span>
+    </div>
+    <div class="cover-contact">
+      <div><span class="label">Telefoon</span> 0342-420741</div>
+      <div><span class="label">E-mail</span> marketing@faam.nl</div>
+      <div><span class="label">Website</span> www.faam.nl</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     RESULTS PAGES (one per vacature)
+══════════════════════════════════════════════════════ -->
+{% for v in vacatures %}
+<div class="page results-page">
+
+  <!-- Header -->
+  <div class="rp-header">
+    {% if logo %}
+      <img class="rp-logo" src="{{ logo }}" alt="Faam">
+    {% else %}
+      <div class="rp-logo-text">Faam<span class="dot">.</span></div>
+    {% endif %}
+    <div class="rp-function">{{ v.titel }}</div>
+    <div class="rp-daterange">{{ v.fmt_start }} – {{ v.fmt_end }}</div>
+  </div>
+
+  <!-- Body -->
+  <div class="rp-body">
+
+    <div class="rp-heading">Een overzicht van de<br>belangrijkste resultaten.</div>
+
+    <!-- Timeline -->
+    {% if v.timeline %}
+    <div class="timeline-wrap">
+      <svg class="timeline-svg" viewBox="0 0 1000 28" preserveAspectRatio="none">
+        <!-- Year labels -->
+        <text x="0" y="12" font-size="9" fill="#777" font-family="sans-serif">{{ v.timeline.year }}</text>
+        <text x="985" y="12" font-size="9" fill="#777" font-family="sans-serif" text-anchor="end">{{ v.timeline.next_year }}</text>
+
+        <!-- Base line -->
+        <line x1="30" y1="16" x2="970" y2="16" stroke="#ccc" stroke-width="1.5"/>
+
+        <!-- Month ticks & labels -->
+        {% for m in v.timeline.months %}
+        {% set mx = 30 + (m.pos / 100) * 940 %}
+        <line x1="{{ mx }}" y1="13" x2="{{ mx }}" y2="19" stroke="#aaa" stroke-width="1"/>
+        <text x="{{ mx }}" y="27" font-size="7" fill="#999" text-anchor="middle" font-family="sans-serif">{{ m.name }}</text>
+        {% endfor %}
+
+        <!-- Start dot -->
+        {% set sx = 30 + (v.timeline.start_pos / 100) * 940 %}
+        <circle cx="{{ sx }}" cy="16" r="5" fill="#27AE60" stroke="#fff" stroke-width="1.5"/>
+
+        <!-- End dot -->
+        {% set ex = 30 + (v.timeline.end_pos / 100) * 940 %}
+        <circle cx="{{ ex }}" cy="16" r="5" fill="#27AE60" stroke="#fff" stroke-width="1.5"/>
+      </svg>
+    </div>
+    {% endif %}
+
+    <!-- Section 1: Faam.nl / Clarity -->
+    <div class="section-title">Algemene informatie Faam.nl</div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Hoeveel mensen op de vacaturepagina zijn gekomen</div>
+        <div class="card-value">{{ v.fmt_sessions }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Hoelang mensen gemiddeld op de pagina hebben gezeten</div>
+        <div class="card-value">{{ v.fmt_time }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Hoe ver mensen gemiddeld op de pagina scrollen</div>
+        <div class="card-value">{{ v.fmt_scroll }}</div>
+      </div>
+    </div>
+
+    <!-- Section 2: Meta advertenties -->
+    <div class="section-title">Algemene informatie vacatureadvertenties</div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Hoe vaak vacatureadvertenties zijn weergegeven</div>
+        <div class="card-value">{{ v.fmt_impressions }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Hoeveel unieke mensen de advertentie hebben gezien</div>
+        <div class="card-value">{{ v.fmt_reach }}</div>
+      </div>
+    </div>
+
+    <!-- Section 3: Sollicitaties -->
+    <div class="section-title">Sollicitaties</div>
+    <div class="cards">
+      <div class="card" style="max-width: 55mm;">
+        <div class="card-label">Aantal sollicitaties</div>
+        <div class="card-value">{{ v.sollicitaties }}</div>
+      </div>
+    </div>
+
+  </div><!-- /rp-body -->
+</div><!-- /results-page -->
+{% endfor %}
+
+</body>
+</html>

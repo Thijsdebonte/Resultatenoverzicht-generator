@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faam — Wervingsrapport Generator</title>
+<style>
+  :root {
+    --green: #27AE60;
+    --green-light: #e8f5ee;
+    --dark: #1A1A1A;
+    --gray: #f4f5f6;
+    --border: #e0e0e0;
+    --text: #111;
+    --muted: #666;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #f8f9fa;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Top bar ─────────────────────────────── */
+  .topbar {
+    background: var(--dark);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-logo {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+
+  .topbar-logo span { color: var(--green); }
+
+  .topbar-sub {
+    font-size: 13px;
+    color: #aaa;
+  }
+
+  /* ── Step indicator ──────────────────────── */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 20px 32px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #aaa;
+    font-weight: 500;
+  }
+
+  .step.active { color: var(--green); }
+  .step.done   { color: var(--text); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: #e0e0e0;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+
+  .step.active .step-num {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .step.done .step-num {
+    background: var(--dark);
+    color: #fff;
+  }
+
+  .step-divider {
+    width: 40px;
+    height: 1px;
+    background: #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  /* ── Main container ──────────────────────── */
+  .main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .panel-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* ── Upload area ─────────────────────────── */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .upload-box {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+
+  .upload-box:hover, .upload-box.drag-over {
+    border-color: var(--green);
+    background: var(--green-light);
+  }
+
+  .upload-box.has-file {
+    border-color: var(--green);
+    background: var(--green-light);
+  }
+
+  .upload-box input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+    line-height: 1;
+  }
+
+  .upload-label {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .upload-hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .upload-filename {
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 600;
+    margin-top: 6px;
+    word-break: break-all;
+  }
+
+  /* ── Buttons ─────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s, background .15s;
+  }
+
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--green);
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: var(--dark);
+    color: #fff;
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--text);
+  }
+
+  .btn-outline:hover { border-color: var(--green); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+
+  /* ── Vacature table ──────────────────────── */
+  .vacancy-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .vacancy-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    padding: 8px 10px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .vacancy-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .vacancy-table tr:last-child td { border-bottom: none; }
+
+  .vacancy-table tr.disabled-row td { opacity: .4; }
+
+  .vacancy-table input[type=text],
+  .vacancy-table input[type=number],
+  .vacancy-table select {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+  }
+
+  .vacancy-table input[type=checkbox] {
+    width: 16px; height: 16px; cursor: pointer;
+  }
+
+  .badge {
+    display: inline-block;
+    background: var(--gray);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .badge.green { background: var(--green-light); color: var(--green); }
+
+  /* ── Clarity summary strip ───────────────── */
+  .clarity-strip {
+    display: flex;
+    gap: 12px;
+    background: var(--green-light);
+    border: 1px solid #b8e3cc;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    font-size: 13px;
+  }
+
+  .clarity-strip .cs-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .clarity-strip .cs-label {
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  .clarity-strip .cs-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+
+  .clarity-strip .cs-note {
+    font-size: 10px;
+    color: #555;
+  }
+
+  .clarity-strip .divider {
+    width: 1px;
+    background: #b8e3cc;
+    margin: 0 4px;
+  }
+
+  /* ── Form fields ─────────────────────────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .form-group .hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: -2px;
+  }
+
+  .form-group input[type=text] {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    width: 100%;
+  }
+
+  .form-group input[type=text]:focus {
+    outline: none;
+    border-color: var(--green);
+  }
+
+  .img-upload-box {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color .2s, background .2s;
+  }
+
+  .img-upload-box:hover { border-color: var(--green); background: var(--green-light); }
+  .img-upload-box.has-img { border-color: var(--green); background: var(--green-light); }
+
+  .img-upload-box input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .img-preview {
+    max-height: 80px;
+    max-width: 100%;
+    border-radius: 4px;
+    margin-top: 6px;
+    object-fit: cover;
+    display: none;
+  }
+
+  .img-preview.visible { display: block; margin: 8px auto 0; }
+
+  /* ── Loading overlay ──────────────────────── */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    color: #fff;
+  }
+
+  #loading-overlay.visible { display: flex; }
+
+  .spinner {
+    width: 44px; height: 44px;
+    border: 4px solid rgba(255,255,255,.3);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error / info messages ────────────────── */
+  .msg {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .msg.error   { background: #fdecea; color: #b71c1c; border: 1px solid #f5c6c3; display: block; }
+  .msg.info    { background: var(--green-light); color: #155724; border: 1px solid #b8e3cc; display: block; }
+  .msg.warning { background: #fff8e1; color: #7d5d00; border: 1px solid #ffe082; display: block; }
+
+  /* ── Steps hide/show ──────────────────────── */
+  .step-content { display: none; }
+  .step-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">Faam<span>.</span></div>
+  <div class="topbar-sub">Wervingsrapport Generator</div>
+</div>
+
+<!-- Step indicator -->
+<div class="steps">
+  <div class="step active" id="si-1">
+    <div class="step-num">1</div>
+    <span>Bestanden uploaden</span>
+  </div>
+  <div class="step-divider"></div>
+  <div class="step" id="si-2">
+    <div class="step-num">2</div>
+    <span>Vacatures selecteren</span>
+  </div>
+  <div class="step-divider"></div>
+  <div class="step" id="si-3">
+    <div class="step-num">3</div>
+    <span>Klantgegevens</span>
+  </div>
+  <div class="step-divider"></div>
+  <div class="step" id="si-4">
+    <div class="step-num">4</div>
+    <span>Rapport genereren</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ════════════════════════════════════════
+       STAP 1: Upload
+  ════════════════════════════════════════ -->
+  <div class="step-content active" id="step-1">
+    <div class="panel">
+      <div class="panel-title">Stap 1 — Bestanden uploaden</div>
+      <div class="panel-sub">Upload de Meta-export en de Clarity-export voor deze klant.</div>
+
+      <div class="upload-grid">
+        <!-- Meta CSV -->
+        <div class="upload-box" id="box-meta">
+          <input type="file" id="meta-file" accept=".csv">
+          <div class="upload-icon">📊</div>
+          <div class="upload-label">Meta CSV</div>
+          <div class="upload-hint">Advertentiesets-export (.csv)</div>
+          <div class="upload-filename" id="meta-filename"></div>
+        </div>
+
+        <!-- Clarity CSV -->
+        <div class="upload-box" id="box-clarity">
+          <input type="file" id="clarity-file" accept=".csv">
+          <div class="upload-icon">📈</div>
+          <div class="upload-label">Clarity CSV</div>
+          <div class="upload-hint">Dashboard-export (.csv)</div>
+          <div class="upload-filename" id="clarity-filename"></div>
+        </div>
+      </div>
+
+      <div id="upload-error" class="msg" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-parse" disabled>
+          Bestanden verwerken →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STAP 2: Vacatures selecteren
+  ════════════════════════════════════════ -->
+  <div class="step-content" id="step-2">
+    <div class="panel">
+      <div class="panel-title">Stap 2 — Vacatures selecteren</div>
+      <div class="panel-sub">
+        Vink aan welke vacatures je in het rapport wilt opnemen. Koppel elke vacature aan de juiste Clarity-pagina en vul het aantal sollicitaties in.
+      </div>
+
+      <!-- Clarity aggregated values strip -->
+      <div class="clarity-strip" id="clarity-strip">
+        <div class="cs-item">
+          <span class="cs-label">Scroll-diepte</span>
+          <span class="cs-value" id="cs-scroll">—</span>
+          <span class="cs-note">gemiddeld alle pagina's</span>
+        </div>
+        <div class="divider"></div>
+        <div class="cs-item">
+          <span class="cs-label">Actieve tijd</span>
+          <span class="cs-value" id="cs-time">—</span>
+          <span class="cs-note">gemiddeld alle pagina's</span>
+        </div>
+        <div class="divider"></div>
+        <div class="cs-item">
+          <span class="cs-label">Campagne</span>
+          <span class="cs-value" id="cs-campaign">—</span>
+          <span class="cs-note" id="cs-daterange">—</span>
+        </div>
+      </div>
+
+      <!-- Vacancy rows -->
+      <table class="vacancy-table" id="vacancy-table">
+        <thead>
+          <tr>
+            <th style="width:36px"></th>
+            <th>Weergavetitel</th>
+            <th>Clarity-pagina (sessies)</th>
+            <th style="width:100px">Sollicitaties</th>
+            <th style="width:100px">Weergaven</th>
+            <th style="width:90px">Bereik</th>
+          </tr>
+        </thead>
+        <tbody id="vacancy-body">
+          <!-- filled by JS -->
+        </tbody>
+      </table>
+
+      <div id="step2-error" class="msg" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="goTo(1)">← Terug</button>
+        <button class="btn btn-primary" id="btn-to-step3">Volgende →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STAP 3: Klantgegevens
+  ════════════════════════════════════════ -->
+  <div class="step-content" id="step-3">
+    <div class="panel">
+      <div class="panel-title">Stap 3 — Klantgegevens</div>
+      <div class="panel-sub">Vul de klantnaam in en upload de afbeeldingen voor het rapport.</div>
+
+      <div class="form-grid">
+
+        <!-- Klantnaam -->
+        <div class="form-group" style="grid-column: 1 / -1">
+          <label for="klant-naam">Klantnaam</label>
+          <div class="hint">Wordt getoond op de cover: "Wervingsrapport voor ..."</div>
+          <input type="text" id="klant-naam" placeholder="Bijv. De Jonge Veiligheid">
+        </div>
+
+        <!-- Cover foto -->
+        <div class="form-group">
+          <label>Cover foto <span style="color:#e53935">*</span></label>
+          <div class="hint">De foto die op de linkerkant van de cover verschijnt.</div>
+          <div class="img-upload-box" id="box-cover">
+            <input type="file" id="cover-file" accept="image/*">
+            <div style="font-size:24px;margin-bottom:6px">🖼️</div>
+            <div style="font-size:13px;font-weight:600">Klik om foto te uploaden</div>
+            <div style="font-size:11px;color:#888">JPG of PNG aanbevolen</div>
+            <img id="cover-preview" class="img-preview" src="" alt="cover preview">
+          </div>
+        </div>
+
+        <!-- Logo -->
+        <div class="form-group">
+          <label>Faam-logo <span style="color:#888;font-weight:400">(optioneel)</span></label>
+          <div class="hint">Logo linksboven op de resultaatpagina's. Als je niets uploadt, verschijnt "Faam." als tekst.</div>
+          <div class="img-upload-box" id="box-logo">
+            <input type="file" id="logo-file" accept="image/*">
+            <div style="font-size:24px;margin-bottom:6px">🏷️</div>
+            <div style="font-size:13px;font-weight:600">Klik om logo te uploaden</div>
+            <div style="font-size:11px;color:#888">PNG met transparantie aanbevolen</div>
+            <img id="logo-preview" class="img-preview" src="" alt="logo preview">
+          </div>
+        </div>
+
+      </div>
+
+      <div id="step3-error" class="msg" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="goTo(2)">← Terug</button>
+        <button class="btn btn-primary" id="btn-to-step4">Rapport genereren →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STAP 4: Gereed
+  ════════════════════════════════════════ -->
+  <div class="step-content" id="step-4">
+    <div class="panel" style="text-align:center; padding: 48px 32px;">
+      <div style="font-size:48px;margin-bottom:16px">✅</div>
+      <div class="panel-title" style="font-size:22px;margin-bottom:8px">Rapport gegenereerd!</div>
+      <div style="font-size:14px;color:#555;margin-bottom:28px">
+        Je PDF is aangemaakt en wordt automatisch gedownload.
+      </div>
+      <button class="btn btn-primary" id="btn-download-again" style="margin:0 auto;">
+        📥 Opnieuw downloaden
+      </button>
+      <div style="margin-top:20px">
+        <button class="btn btn-outline" onclick="startOver()" style="font-size:13px">
+          Nieuw rapport maken
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-text" style="font-size:15px">PDF wordt gegenereerd…</div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────
+let parsedData = { clarity: null, meta: [] };
+let currentStep = 1;
+let lastPdfBlob = null;
+let lastFilename = 'Wervingsrapport.pdf';
+
+// ── Navigation ─────────────────────────────────────────
+function goTo(step) {
+  document.getElementById(`step-${currentStep}`).classList.remove('active');
+  document.querySelectorAll('.step').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i + 1 < step)  el.classList.add('done');
+    if (i + 1 === step) el.classList.add('active');
+  });
+  currentStep = step;
+  document.getElementById(`step-${step}`).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── Helpers ────────────────────────────────────────────
+function fmtNum(n) {
+  return Number(n).toLocaleString('nl-NL');
+}
+
+function fmtDecimal(n, d=2) {
+  return Number(n).toFixed(d).replace('.', ',');
+}
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(' ').filter(t => t.length > 2);
+}
+
+function bestClarityMatch(adSetName, pages) {
+  const tokens = slugify(adSetName);
+  let best = null, bestScore = 0;
+  for (const page of pages) {
+    const slug = page.url.split('/').pop();
+    const urlTokens = slug.split('-').filter(t => t.length > 2);
+    let score = 0;
+    for (const t of tokens) {
+      if (urlTokens.some(ut => ut.includes(t) || t.includes(ut))) score++;
+    }
+    if (score > bestScore) { bestScore = score; best = page; }
+  }
+  return best;
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'msg error';
+}
+
+function clearError(id) {
+  const el = document.getElementById(id);
+  el.className = 'msg';
+  el.style.display = 'none';
+}
+
+// ── STEP 1: File upload ────────────────────────────────
+const metaInput = document.getElementById('meta-file');
+const clarityInput = document.getElementById('clarity-file');
+
+function onFileChange() {
+  const hasMeta = metaInput.files.length > 0;
+  const hasClarity = clarityInput.files.length > 0;
+
+  if (hasMeta) {
+    document.getElementById('meta-filename').textContent = metaInput.files[0].name;
+    document.getElementById('box-meta').classList.add('has-file');
+  }
+  if (hasClarity) {
+    document.getElementById('clarity-filename').textContent = clarityInput.files[0].name;
+    document.getElementById('box-clarity').classList.add('has-file');
+  }
+  document.getElementById('btn-parse').disabled = !(hasMeta && hasClarity);
+}
+
+metaInput.addEventListener('change', onFileChange);
+clarityInput.addEventListener('change', onFileChange);
+
+document.getElementById('btn-parse').addEventListener('click', async () => {
+  clearError('upload-error');
+  const fd = new FormData();
+  fd.append('meta_csv', metaInput.files[0]);
+  fd.append('clarity_csv', clarityInput.files[0]);
+
+  showLoading('Bestanden verwerken…');
+  try {
+    const res = await fetch('/parse', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Onbekende fout');
+    parsedData = data;
+    buildStep2();
+    goTo(2);
+  } catch (e) {
+    showError('upload-error', '❌ ' + e.message);
+  } finally {
+    hideLoading();
+  }
+});
+
+// ── STEP 2: Build vacancy table ────────────────────────
+function buildStep2() {
+  const { clarity, meta } = parsedData;
+
+  // Clarity strip
+  if (clarity) {
+    document.getElementById('cs-scroll').textContent = fmtDecimal(clarity.scroll_depth) + '%';
+    document.getElementById('cs-time').textContent = clarity.avg_time + ' sec';
+    document.getElementById('cs-campaign').textContent = clarity.campaign || '—';
+    document.getElementById('cs-daterange').textContent = clarity.date_range || '';
+  }
+
+  const tbody = document.getElementById('vacancy-body');
+  tbody.innerHTML = '';
+
+  const pages = (clarity && clarity.pages) || [];
+
+  // Build page options for the dropdown
+  const pageOptions = pages.map(p => {
+    const label = p.url.split('/').pop().replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return `<option value="${p.url}" data-sessions="${p.sessions}">${label} (${fmtNum(p.sessions)} sessies)</option>`;
+  }).join('');
+  const noPageOption = `<option value="">— Geen Clarity-pagina —</option>`;
+
+  meta.forEach((adSet, idx) => {
+    const matched = bestClarityMatch(adSet.name, pages);
+
+    const tr = document.createElement('tr');
+    tr.id = `vrow-${idx}`;
+    tr.innerHTML = `
+      <td><input type="checkbox" id="chk-${idx}" checked onchange="toggleRow(${idx})"></td>
+      <td><input type="text" id="title-${idx}" value="${adSet.name}"></td>
+      <td>
+        <select id="page-${idx}" onchange="updateSessions(${idx})">
+          ${noPageOption}${pageOptions}
+        </select>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="sessions-disp-${idx}"></div>
+      </td>
+      <td><input type="number" id="soll-${idx}" min="0" value="0" style="text-align:center"></td>
+      <td><span class="badge green">${fmtNum(adSet.impressions)}</span></td>
+      <td><span class="badge">${fmtNum(adSet.reach)}</span></td>
+    `;
+    tbody.appendChild(tr);
+
+    // Auto-select best match
+    if (matched) {
+      const sel = document.getElementById(`page-${idx}`);
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === matched.url) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+      updateSessions(idx);
+    }
+  });
+}
+
+function toggleRow(idx) {
+  const row = document.getElementById(`vrow-${idx}`);
+  row.classList.toggle('disabled-row', !document.getElementById(`chk-${idx}`).checked);
+}
+
+function updateSessions(idx) {
+  const sel = document.getElementById(`page-${idx}`);
+  const opt = sel.options[sel.selectedIndex];
+  const s = opt ? opt.getAttribute('data-sessions') : null;
+  const disp = document.getElementById(`sessions-disp-${idx}`);
+  disp.textContent = s ? `${fmtNum(s)} sessies` : '';
+}
+
+document.getElementById('btn-to-step3').addEventListener('click', () => {
+  const checked = parsedData.meta.some((_, i) => document.getElementById(`chk-${i}`)?.checked);
+  if (!checked) {
+    showError('step2-error', '❌ Selecteer minstens één vacature.');
+    return;
+  }
+  clearError('step2-error');
+  goTo(3);
+});
+
+// ── STEP 3: Image uploads ──────────────────────────────
+function setupImgUpload(inputId, previewId, boxId) {
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  const box = document.getElementById(boxId);
+
+  input.addEventListener('change', () => {
+    if (!input.files.length) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.classList.add('visible');
+      box.classList.add('has-img');
+    };
+    reader.readAsDataURL(input.files[0]);
+  });
+}
+
+setupImgUpload('cover-file', 'cover-preview', 'box-cover');
+setupImgUpload('logo-file', 'logo-preview', 'box-logo');
+
+// ── STEP 4: Generate PDF ───────────────────────────────
+document.getElementById('btn-to-step4').addEventListener('click', () => generatePDF());
+document.getElementById('btn-download-again').addEventListener('click', () => downloadBlob());
+
+async function generatePDF() {
+  clearError('step3-error');
+
+  const klantNaam = document.getElementById('klant-naam').value.trim();
+  if (!klantNaam) {
+    showError('step3-error', '❌ Vul de klantnaam in.');
+    return;
+  }
+
+  const coverFile = document.getElementById('cover-file').files[0];
+  if (!coverFile) {
+    showError('step3-error', '❌ Upload een cover foto.');
+    return;
+  }
+
+  showLoading('PDF wordt gegenereerd…');
+
+  try {
+    const coverPhoto = await readFileAsDataURL(coverFile);
+    const logoFile = document.getElementById('logo-file').files[0];
+    const logo = logoFile ? await readFileAsDataURL(logoFile) : null;
+
+    const { clarity, meta } = parsedData;
+    const pages = (clarity && clarity.pages) || [];
+
+    const vacatures = [];
+    meta.forEach((adSet, idx) => {
+      if (!document.getElementById(`chk-${idx}`)?.checked) return;
+
+      const pageUrl = document.getElementById(`page-${idx}`).value;
+      const matchedPage = pages.find(p => p.url === pageUrl);
+
+      vacatures.push({
+        titel: document.getElementById(`title-${idx}`).value || adSet.name,
+        start_date: adSet.start_date,
+        end_date: adSet.end_date,
+        sessions: matchedPage ? matchedPage.sessions : 0,
+        impressions: adSet.impressions,
+        reach: adSet.reach,
+        sollicitaties: parseInt(document.getElementById(`soll-${idx}`).value) || 0,
+        scroll_depth: clarity ? clarity.scroll_depth : 0,
+        avg_time: clarity ? clarity.avg_time : 0,
+      });
+    });
+
+    const payload = {
+      klant_naam: klantNaam,
+      cover_photo: coverPhoto,
+      logo: logo,
+      vacatures: vacatures,
+    };
+
+    const res = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Onbekende fout bij genereren');
+    }
+
+    const blob = await res.blob();
+    lastPdfBlob = blob;
+    lastFilename = `Wervingsrapport_${klantNaam.replace(/\s+/g, '_')}.pdf`;
+    downloadBlob();
+    goTo(4);
+
+  } catch (e) {
+    showError('step3-error', '❌ ' + e.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function downloadBlob() {
+  if (!lastPdfBlob) return;
+  const url = URL.createObjectURL(lastPdfBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = lastFilename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function startOver() {
+  location.reload();
+}
+
+// ── Loading helpers ─────────────────────────────────────
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Bezig…';
+  document.getElementById('loading-overlay').classList.add('visible');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('visible');
+}
+</script>
+</body>
+</html>

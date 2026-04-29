@@ -199,6 +199,14 @@ def parse_meta_csv(content):
 #  PDF GENERATION  (fpdf2 — pure Python, works on Vercel)
 # ════════════════════════════════════════════════════════════
 
+def _rounded_rect(pdf, x, y, w, h, r, corners='1234', style='F'):
+    """Draw a rounded rect; falls back to plain rect if fpdf2 version is too old."""
+    try:
+        pdf.rounded_rect(x, y, w, h, r, corners, style=style)
+    except AttributeError:
+        pdf.rect(x, y, w, h, style=style)
+
+
 def _make_pdf(data):
     from fpdf import FPDF
 
@@ -304,7 +312,7 @@ def _results_page(pdf, v, logo_bytes=None):
     pdf.set_fill_color(240, 240, 240)
     pdf.set_draw_color(*BORDER)
     pdf.set_line_width(0.2)
-    pdf.rounded_rect(pill_x, pill_y, pill_w, pill_h, 1.5, '1234', style='FD')
+    _rounded_rect(pdf,pill_x, pill_y, pill_w, pill_h, 1.5, '1234', style='FD')
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
     pdf.set_xy(pill_x, pill_y)
@@ -432,7 +440,7 @@ def _draw_section(pdf, title, metrics, y, bx, max_card_w=None):
 
         # Card background
         pdf.set_fill_color(*LGRAY)
-        pdf.rounded_rect(cx, cy, card_w, card_h, 2, '1234', style='F')
+        _rounded_rect(pdf,cx, cy, card_w, card_h, 2, '1234', style='F')
 
         # Label (small, multi-line)
         pdf.set_font('Helvetica', '', 5.5)

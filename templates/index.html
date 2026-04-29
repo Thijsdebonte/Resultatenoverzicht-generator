@@ -702,12 +702,15 @@ function showError(id, msg) {
   const el = document.getElementById(id);
   el.textContent = msg;
   el.className = 'msg error';
+  el.style.display = 'block';   // override any inline display:none
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  console.error('[Faam]', id, msg);
 }
 
 function clearError(id) {
   const el = document.getElementById(id);
   el.className = 'msg';
-  el.style.display = 'none';
+  el.style.display = '';   // let CSS take over (hides via .msg rule)
 }
 
 // ── STEP 1: File upload ────────────────────────────────
@@ -918,8 +921,13 @@ async function generatePDF() {
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Onbekende fout bij genereren');
+      let errMsg = 'Onbekende serverfout';
+      try {
+        const err = await res.json();
+        errMsg = err.error || errMsg;
+        if (err.trace) console.error('[Faam server trace]', err.trace);
+      } catch (_) {}
+      throw new Error(errMsg);
     }
 
     const blob = await res.blob();

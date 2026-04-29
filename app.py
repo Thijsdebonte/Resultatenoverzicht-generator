@@ -8,9 +8,11 @@ app.secret_key = os.environ.get('SECRET_KEY', 'faam-dev-secret-2024')
 # ════════════════════════════════════════════════════════════
 #  OVERLAY COÖRDINATEN  ← pas hier aan om tekst te verplaatsen
 #
-#  Alles in millimeters (mm) vanaf de linkerbovenhoek.
-#  x = afstand van links,  y = afstand van boven.
-#  Gebruik /calibreer in de browser om een hulpraster te zien.
+#  Alle waarden in millimeters (mm) vanaf de linkerbovenhoek.
+#  De getallen worden GECENTREERD in de kaartbreedte geplaatst —
+#  jij hoeft alleen de Y-waarden (hoogte) bij te stellen.
+#
+#  Gebruik /calibreer in de browser voor een hulp-PDF met raster.
 # ════════════════════════════════════════════════════════════
 
 # -- Coverpagina ------------------------------------------
@@ -24,19 +26,18 @@ DATA_TITEL_Y    =   4   # vacaturetitel: afstand van boven
 DATA_DATUM_X    = 215   # datumreeks: afstand van links
 DATA_DATUM_Y    =   4   # datumreeks: afstand van boven
 
-# -- Datapagina: kaartwaarden (grote getallen) ------------
-DATA_SESSIES_X   =  13  # sessies
-DATA_SESSIES_Y   =  99
-DATA_TIJD_X      = 103  # gemiddelde tijd
-DATA_TIJD_Y      =  99
-DATA_SCROLL_X    = 197  # scroll-diepte
-DATA_SCROLL_Y    =  99
-DATA_WEERGAVEN_X =  13  # Meta weergaven
-DATA_WEERGAVEN_Y = 147
-DATA_BEREIK_X    = 153  # Meta bereik
-DATA_BEREIK_Y    = 147
-DATA_SOLLICIT_X  =  13  # sollicitaties
-DATA_SOLLICIT_Y  = 192
+# -- Datapagina: Y-positie van de grote getallen ----------
+#    (tekst wordt horizontaal gecentreerd in elke kaart)
+DATA_VAL_SIZE   =  22   # lettergrootte grote getallen (pt)
+
+DATA_SESSIES_Y  = 106   # rij 1: sessies / tijd / scroll
+DATA_TIJD_Y     = 106
+DATA_SCROLL_Y   = 106
+
+DATA_WEERGAVEN_Y= 147   # rij 2: weergaven / bereik
+DATA_BEREIK_Y   = 147
+
+DATA_SOLLICIT_Y = 182   # rij 3: sollicitaties
 
 # ── Dutch month abbreviations ────────────────────────────────
 DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun',
@@ -312,24 +313,32 @@ def _results_page(pdf, v, data_template_bytes=None):
     pdf.set_xy(DATA_DATUM_X, DATA_DATUM_Y)
     pdf.cell(pill_w, 6, date_str, align='C', ln=0)
 
-    # ── Helper: overlay a metric value (large bold number) ───
-    def val(x, y, text):
-        pdf.set_font('Helvetica', 'B', 20)
+    # ── Card layout (matches the template design) ────────────
+    # 3 equal cards across full content width
+    n1  = 3
+    cw1 = (cw - gap * (n1 - 1)) / n1          # ≈ 89.7 mm each
+    # 2 equal cards across full content width
+    n2  = 2
+    cw2 = (cw - gap * (n2 - 1)) / n2          # ≈ 136.5 mm each
+
+    # Helper: draw a value CENTRED horizontally in its card
+    def val(card_x, card_w, y, text):
+        pdf.set_font('Helvetica', 'B', DATA_VAL_SIZE)
         pdf.set_text_color(*DARK)
-        pdf.set_xy(x, y)
-        pdf.cell(80, 10, text, align='L', ln=0)
+        pdf.set_xy(card_x, y)
+        pdf.cell(card_w, 10, text, align='C', ln=0)
 
-    # ── Section 1 — Clarity ──────────────────────────────────
-    val(DATA_SESSIES_X,   DATA_SESSIES_Y,   v.get('fmt_sessions',    '0'))
-    val(DATA_TIJD_X,      DATA_TIJD_Y,      v.get('fmt_time',        '0 sec'))
-    val(DATA_SCROLL_X,    DATA_SCROLL_Y,    v.get('fmt_scroll',      '0%'))
+    # ── Section 1 — Clarity (3 cards) ────────────────────────
+    val(BX,                   cw1, DATA_SESSIES_Y,   v.get('fmt_sessions',    '0'))
+    val(BX + (cw1 + gap),     cw1, DATA_TIJD_Y,      v.get('fmt_time',        '0 sec'))
+    val(BX + 2 * (cw1 + gap), cw1, DATA_SCROLL_Y,    v.get('fmt_scroll',      '0%'))
 
-    # ── Section 2 — Meta ─────────────────────────────────────
-    val(DATA_WEERGAVEN_X, DATA_WEERGAVEN_Y, v.get('fmt_impressions', '0'))
-    val(DATA_BEREIK_X,    DATA_BEREIK_Y,    v.get('fmt_reach',       '0'))
+    # ── Section 2 — Meta (2 cards) ───────────────────────────
+    val(BX,                   cw2, DATA_WEERGAVEN_Y, v.get('fmt_impressions', '0'))
+    val(BX + (cw2 + gap),     cw2, DATA_BEREIK_Y,    v.get('fmt_reach',       '0'))
 
-    # ── Section 3 — Sollicitaties ─────────────────────────────
-    val(DATA_SOLLICIT_X,  DATA_SOLLICIT_Y,  str(v.get('sollicitaties', 0)))
+    # ── Section 3 — Sollicitaties (1 card, kleinere breedte) ─
+    val(BX,                   cw1, DATA_SOLLICIT_Y,  str(v.get('sollicitaties', 0)))
 
 
 # ════════════════════════════════════════════════════════════
@@ -452,15 +461,21 @@ def calibreer():
     data_tpl = _load_static_img('data_template.jpg')
     if data_tpl:
         pdf.image(data_tpl, x=0, y=0, w=PAGE_W, h=PAGE_H)
+    # Bereken kaartmiddelpunten (zelfde formule als _results_page)
+    _bx, _gap, _cw = 10, 4, PAGE_W - 20
+    _cw1 = (_cw - _gap * 2) / 3
+    _cw2 = (_cw - _gap) / 2
+    _cx1 = [_bx + _cw1/2, _bx + _cw1 + _gap + _cw1/2, _bx + 2*(_cw1+_gap) + _cw1/2]
+    _cx2 = [_bx + _cw2/2, _bx + _cw2 + _gap + _cw2/2]
     draw_grid_and_markers([
-        (DATA_TITEL_X,    DATA_TITEL_Y,    'TITEL',      (39, 174, 96)),
-        (DATA_DATUM_X,    DATA_DATUM_Y,    'DATUM',      (39, 174, 96)),
-        (DATA_SESSIES_X,  DATA_SESSIES_Y,  'SESSIES',    (230, 80,  80)),
-        (DATA_TIJD_X,     DATA_TIJD_Y,     'TIJD',       (230, 80,  80)),
-        (DATA_SCROLL_X,   DATA_SCROLL_Y,   'SCROLL',     (230, 80,  80)),
-        (DATA_WEERGAVEN_X,DATA_WEERGAVEN_Y,'WEERGAVEN',  (80,  80, 220)),
-        (DATA_BEREIK_X,   DATA_BEREIK_Y,   'BEREIK',     (80,  80, 220)),
-        (DATA_SOLLICIT_X, DATA_SOLLICIT_Y, 'SOLLICIT.',  (180, 80, 220)),
+        (DATA_TITEL_X,  DATA_TITEL_Y,    'TITEL',     (39, 174, 96)),
+        (DATA_DATUM_X,  DATA_DATUM_Y,    'DATUM',     (39, 174, 96)),
+        (_cx1[0], DATA_SESSIES_Y,  'SESSIES',   (230, 80,  80)),
+        (_cx1[1], DATA_TIJD_Y,     'TIJD',      (230, 80,  80)),
+        (_cx1[2], DATA_SCROLL_Y,   'SCROLL',    (230, 80,  80)),
+        (_cx2[0], DATA_WEERGAVEN_Y,'WEERGAVEN', (80,  80, 220)),
+        (_cx2[1], DATA_BEREIK_Y,   'BEREIK',    (80,  80, 220)),
+        (_cx1[0], DATA_SOLLICIT_Y, 'SOLLICIT.', (180, 80, 220)),
     ])
 
     buf = io.BytesIO(bytes(pdf.output()))

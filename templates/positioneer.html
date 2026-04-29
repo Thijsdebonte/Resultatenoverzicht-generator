@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positioneer tekstblokken — Resultatenoverzicht</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #111827;
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+header {
+  background: #1f2937;
+  border-bottom: 2px solid #27ae60;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
+.back-link { color: #6b7280; text-decoration: none; font-size: 13px; white-space: nowrap; }
+.back-link:hover { color: #27ae60; }
+
+.toolbar {
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 6px 16px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  background: #374151;
+  color: #9ca3af;
+  transition: all 0.15s;
+}
+.tab-btn:hover { background: #4b5563; color: #e5e7eb; }
+.tab-btn.active { background: #27ae60; border-color: #27ae60; color: white; }
+
+.save-btn {
+  margin-left: auto;
+  padding: 7px 20px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.save-btn:hover { background: #219a52; }
+.save-btn:disabled { opacity: 0.5; cursor: default; }
+
+#status {
+  font-size: 13px;
+  min-width: 140px;
+  color: #27ae60;
+}
+
+.legend {
+  padding: 8px 20px;
+  font-size: 11px;
+  color: #6b7280;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #1a2332;
+  border-bottom: 1px solid #374151;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-swatch {
+  width: 14px; height: 8px; border-radius: 2px;
+  border: 2px dashed;
+}
+
+.editor-area {
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.canvas-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.canvas-wrap img {
+  display: block;
+  width: 100%;
+  max-width: 1200px;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  background: #374151;
+}
+
+/* Placeholder when image is missing */
+.no-template {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1f2937;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+  width: 1200px;
+  max-width: 100%;
+  aspect-ratio: 297 / 210;
+}
+
+.block {
+  position: absolute;
+  border: 2px dashed rgba(255,255,255,0.7);
+  background: rgba(0, 0, 0, 0.65);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: grab;
+  user-select: none;
+  line-height: 1.5;
+  transform: translateY(-50%);  /* vertical-center on Y coord */
+}
+.block:active { cursor: grabbing; }
+.block.dragging { box-shadow: 0 0 0 3px rgba(255,255,255,0.25); z-index: 999 !important; }
+
+/* Color classes */
+.blk-cover  { border-color: #27ae60; color: #27ae60; }
+.blk-header { border-color: #60a5fa; color: #60a5fa; }
+.blk-row1   { border-color: #f87171; color: #f87171; }
+.blk-row2   { border-color: #818cf8; color: #818cf8; }
+.blk-row3   { border-color: #c084fc; color: #c084fc; }
+
+.blk-label  { font-size: 9px; font-weight: 600; opacity: 0.75; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+.blk-value  { display: block; font-size: 12px; }
+.blk-coord  { display: block; font-size: 9px; font-weight: 400; opacity: 0.65; margin-top: 1px; }
+
+/* JSON download panel */
+#json-panel {
+  display: none;
+  margin: 0 20px 20px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 16px;
+}
+#json-panel h3 { font-size: 13px; color: #27ae60; margin-bottom: 8px; }
+#json-panel p  { font-size: 12px; color: #9ca3af; margin-bottom: 10px; line-height: 1.5; }
+#json-output {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #86efac;
+  white-space: pre;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.copy-btn {
+  margin-top: 8px;
+  padding: 5px 14px;
+  background: #374151;
+  color: #e5e7eb;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.copy-btn:hover { background: #4b5563; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📐 Tekstblokken positioneren</h1>
+  <a href="/" class="back-link">← Terug naar app</a>
+</header>
+
+<div class="toolbar">
+  <button class="tab-btn active" onclick="showTab('cover')" id="tab-cover">🖼 Cover</button>
+  <button class="tab-btn" onclick="showTab('data')" id="tab-data">📊 Datapagina</button>
+  <span id="status"></span>
+  <button class="save-btn" onclick="saveAll()" id="save-btn">💾 Opslaan</button>
+</div>
+
+<div class="legend">
+  <span class="legend-item">
+    <span class="legend-swatch" style="border-color:#27ae60;background:rgba(39,174,96,.15)"></span>
+    Klantnaam (cover)
+  </span>
+  <span class="legend-item">
+    <span class="legend-swatch" style="border-color:#60a5fa;background:rgba(96,165,250,.15)"></span>
+    Kopteksten (vrij slepen)
+  </span>
+  <span class="legend-item">
+    <span class="legend-swatch" style="border-color:#f87171;background:rgba(248,113,113,.15)"></span>
+    Rij 1 — sessies / tijd / scroll
+  </span>
+  <span class="legend-item">
+    <span class="legend-swatch" style="border-color:#818cf8;background:rgba(129,140,248,.15)"></span>
+    Rij 2 — weergaven / bereik
+  </span>
+  <span class="legend-item">
+    <span class="legend-swatch" style="border-color:#c084fc;background:rgba(192,132,252,.15)"></span>
+    Rij 3 — sollicitaties
+  </span>
+  <span class="legend-item" style="color:#9ca3af; font-style:italic;">
+    Gekleurde blokken = alleen verticaal slepen (X staat vast)
+  </span>
+</div>
+
+<!-- ── COVER EDITOR ─────────────────────────────────────── -->
+<div class="editor-area">
+  <div id="page-cover" class="canvas-wrap">
+    <img id="img-cover" src="/template-img/cover" alt="Cover template"
+         onerror="handleMissingImg(this, 'cover')">
+
+    <div class="block blk-cover"
+         id="blk-cover-naam"
+         data-page="cover"
+         data-cx="cover_naam_x"
+         data-cy="cover_naam_y"
+         data-yonly="false">
+      <span class="blk-label">Klantnaam</span>
+      <span class="blk-value">Klant B.V.</span>
+      <span class="blk-coord" id="coord-cover-naam"></span>
+    </div>
+  </div>
+
+  <!-- ── DATA EDITOR ──────────────────────────────────────── -->
+  <div id="page-data" class="canvas-wrap" style="display:none;">
+    <img id="img-data" src="/template-img/data" alt="Data template"
+         onerror="handleMissingImg(this, 'data')">
+
+    <!-- Koptekst: vacaturetitel -->
+    <div class="block blk-header"
+         id="blk-data-titel"
+         data-page="data"
+         data-cx="data_titel_x"
+         data-cy="data_titel_y"
+         data-yonly="false">
+      <span class="blk-label">Vacaturetitel</span>
+      <span class="blk-value">Medewerker Groenvoorziening</span>
+      <span class="blk-coord" id="coord-data-titel"></span>
+    </div>
+
+    <!-- Koptekst: datumreeks -->
+    <div class="block blk-header"
+         id="blk-data-datum"
+         data-page="data"
+         data-cx="data_datum_x"
+         data-cy="data_datum_y"
+         data-yonly="false">
+      <span class="blk-label">Datumreeks</span>
+      <span class="blk-value">12 jan - 28 feb 2026</span>
+      <span class="blk-coord" id="coord-data-datum"></span>
+    </div>
+
+    <!-- Rij 1: sessies (card-center X = 54.83 mm) -->
+    <div class="block blk-row1"
+         id="blk-data-sessies"
+         data-page="data"
+         data-cy="data_sessies_y"
+         data-yonly="true"
+         data-fx="54.83">
+      <span class="blk-label">Sessies</span>
+      <span class="blk-value">1.234</span>
+      <span class="blk-coord" id="coord-data-sessies"></span>
+    </div>
+
+    <!-- Rij 1: gem. tijd (card-center X = 148.5 mm) -->
+    <div class="block blk-row1"
+         id="blk-data-tijd"
+         data-page="data"
+         data-cy="data_tijd_y"
+         data-yonly="true"
+         data-fx="148.5">
+      <span class="blk-label">Gem. tijd</span>
+      <span class="blk-value">45 sec</span>
+      <span class="blk-coord" id="coord-data-tijd"></span>
+    </div>
+
+    <!-- Rij 1: scroll (card-center X = 242.17 mm) -->
+    <div class="block blk-row1"
+         id="blk-data-scroll"
+         data-page="data"
+         data-cy="data_scroll_y"
+         data-yonly="true"
+         data-fx="242.17">
+      <span class="blk-label">Scroll</span>
+      <span class="blk-value">68,50%</span>
+      <span class="blk-coord" id="coord-data-scroll"></span>
+    </div>
+
+    <!-- Rij 2: weergaven (card-center X = 78.25 mm) -->
+    <div class="block blk-row2"
+         id="blk-data-weergaven"
+         data-page="data"
+         data-cy="data_weergaven_y"
+         data-yonly="true"
+         data-fx="78.25">
+      <span class="blk-label">Weergaven</span>
+      <span class="blk-value">90.601</span>
+      <span class="blk-coord" id="coord-data-weergaven"></span>
+    </div>
+
+    <!-- Rij 2: bereik (card-center X = 218.75 mm) -->
+    <div class="block blk-row2"
+         id="blk-data-bereik"
+         data-page="data"
+         data-cy="data_bereik_y"
+         data-yonly="true"
+         data-fx="218.75">
+      <span class="blk-label">Bereik</span>
+      <span class="blk-value">45.234</span>
+      <span class="blk-coord" id="coord-data-bereik"></span>
+    </div>
+
+    <!-- Rij 3: sollicitaties (card-center X = 54.83 mm) -->
+    <div class="block blk-row3"
+         id="blk-data-sollicit"
+         data-page="data"
+         data-cy="data_sollicit_y"
+         data-yonly="true"
+         data-fx="54.83">
+      <span class="blk-label">Sollicitaties</span>
+      <span class="blk-value">12</span>
+      <span class="blk-coord" id="coord-data-sollicit"></span>
+    </div>
+  </div>
+</div>
+
+<!-- JSON download panel (shown when Vercel can't write to static/) -->
+<div id="json-panel">
+  <h3>📋 Coördinaten opslaan op Vercel</h3>
+  <p>
+    Op Vercel kan het bestand niet automatisch worden opgeslagen.
+    Kopieer de JSON hieronder, sla het op als <strong>static/coords.json</strong>
+    in je repository en push de wijziging.
+  </p>
+  <pre id="json-output"></pre>
+  <button class="copy-btn" onclick="copyJson()">📋 Kopieer JSON</button>
+</div>
+
+<script>
+// ── A4 landscape dimensions ──────────────────────────────
+const PAGE_W_MM = 297;
+const PAGE_H_MM = 210;
+
+// ── Card geometry (must match app.py) ───────────────────
+const BX = 10, GAP = 4;
+const CW  = PAGE_W_MM - BX * 2;           // 277 mm
+const CW1 = (CW - GAP * 2) / 3;           // ≈89.67 mm  (3-card row)
+const CW2 = (CW - GAP)     / 2;           // 136.5 mm   (2-card row)
+
+// Card center X positions (mm) — these are the fixed_x values (data-fx)
+// Row 1: BX + CW1/2, BX+(CW1+GAP)+CW1/2, BX+2*(CW1+GAP)+CW1/2
+// Row 2: BX + CW2/2, BX+(CW2+GAP)+CW2/2
+
+let coords   = {};
+let activeTab = 'cover';
+
+// ── Scale helper ────────────────────────────────────────
+function getScale(page) {
+  const img = document.getElementById('img-' + page);
+  if (!img || !img.naturalWidth) return 3.0;
+  return img.getBoundingClientRect().width / PAGE_W_MM;
+}
+
+// ── Position all blocks for a page ──────────────────────
+function positionAll(page) {
+  const s = getScale(page);
+  document.querySelectorAll(`[data-page="${page}"]`).forEach(el => {
+    placeBlock(el, s);
+  });
+}
+
+function placeBlock(el, s) {
+  const yonly  = el.dataset.yonly === 'true';
+  const cy     = el.dataset.cy;
+  const cx     = el.dataset.cx;
+  const fx     = parseFloat(el.dataset.fx || 0);
+
+  const y_mm   = coords[cy] ?? 0;
+  const x_mm   = yonly ? fx : (coords[cx] ?? 0);
+
+  // Use card-center X for Y-only blocks so the block appears centered over the number
+  el.style.left = (x_mm * s) + 'px';
+  el.style.top  = (y_mm * s) + 'px';
+  // transform: translateX(-50%) for y-only (center on card), translateY(-50%) always
+  if (yonly) {
+    el.style.transform = 'translate(-50%, -50%)';
+  } else {
+    el.style.transform = 'translateY(-50%)';
+  }
+
+  refreshLabel(el, x_mm, y_mm, yonly);
+}
+
+function refreshLabel(el, x_mm, y_mm, yonly) {
+  const coordEl = el.querySelector('.blk-coord');
+  if (!coordEl) return;
+  if (yonly) {
+    coordEl.textContent = `y = ${y_mm.toFixed(1)} mm`;
+  } else {
+    coordEl.textContent = `x = ${x_mm.toFixed(1)},  y = ${y_mm.toFixed(1)} mm`;
+  }
+}
+
+// ── Drag setup ──────────────────────────────────────────
+function setupDrags() {
+  document.querySelectorAll('.block').forEach(el => {
+    let active = false;
+    let startMouseX, startMouseY, startLeft, startTop;
+
+    el.addEventListener('mousedown', e => {
+      active = true;
+      startMouseX = e.clientX;
+      startMouseY = e.clientY;
+      startLeft = parseFloat(el.style.left) || 0;
+      startTop  = parseFloat(el.style.top)  || 0;
+      el.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    // touch support
+    el.addEventListener('touchstart', e => {
+      const t = e.touches[0];
+      active = true;
+      startMouseX = t.clientX;
+      startMouseY = t.clientY;
+      startLeft = parseFloat(el.style.left) || 0;
+      startTop  = parseFloat(el.style.top)  || 0;
+      el.classList.add('dragging');
+      e.preventDefault();
+    }, { passive: false });
+
+    function onMove(clientX, clientY) {
+      if (!active) return;
+      if (el.dataset.page !== activeTab) return;
+
+      const page = el.dataset.page;
+      const s    = getScale(page);
+      const img  = document.getElementById('img-' + page);
+      const rect = img.getBoundingClientRect();
+
+      const dx = clientX - startMouseX;
+      const dy = clientY - startMouseY;
+      const yonly = el.dataset.yonly === 'true';
+
+      // For Y-only, lock horizontal to card center (no X movement)
+      const newLeft = yonly
+        ? startLeft
+        : Math.max(0, Math.min(rect.width, startLeft + dx));
+      const newTop = Math.max(0, Math.min(rect.height, startTop + dy));
+
+      el.style.left = newLeft + 'px';
+      el.style.top  = newTop  + 'px';
+
+      // Convert back to mm
+      const x_mm = yonly
+        ? parseFloat(el.dataset.fx || 0)
+        : Math.round((newLeft / s) * 10) / 10;
+      const y_mm = Math.round((newTop / s) * 10) / 10;
+
+      if (!yonly && el.dataset.cx) coords[el.dataset.cx] = x_mm;
+      coords[el.dataset.cy] = y_mm;
+
+      refreshLabel(el, x_mm, y_mm, yonly);
+    }
+
+    document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+    document.addEventListener('touchmove', e => {
+      onMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    function onUp() {
+      if (active) {
+        active = false;
+        el.classList.remove('dragging');
+      }
+    }
+    document.addEventListener('mouseup',    onUp);
+    document.addEventListener('touchend',   onUp);
+    document.addEventListener('touchcancel',onUp);
+  });
+}
+
+// ── Tab switching ────────────────────────────────────────
+function showTab(page) {
+  activeTab = page;
+  const pages = ['cover', 'data'];
+  pages.forEach(p => {
+    document.getElementById('page-' + p).style.display = p === page ? 'inline-block' : 'none';
+    document.getElementById('tab-'  + p).classList.toggle('active', p === page);
+  });
+  // Small delay so layout is stable before positioning
+  setTimeout(() => positionAll(page), 30);
+}
+
+// ── Save coords ──────────────────────────────────────────
+async function saveAll() {
+  const btn    = document.getElementById('save-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Bezig met opslaan…';
+  try {
+    const resp = await fetch('/save-coords', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(coords),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.written_to_static) {
+        status.textContent = '✓ Opgeslagen in static/coords.json';
+        document.getElementById('json-panel').style.display = 'none';
+      } else {
+        status.textContent = '⚠ Opgeslagen in /tmp — zie JSON hieronder';
+        document.getElementById('json-output').textContent = data.coords_json;
+        document.getElementById('json-panel').style.display = 'block';
+      }
+      setTimeout(() => { if (status.textContent.startsWith('✓')) status.textContent = ''; }, 4000);
+    } else {
+      status.textContent = '✗ Fout: ' + (data.error || 'onbekend');
+    }
+  } catch (err) {
+    status.textContent = '✗ ' + err.message;
+  }
+  btn.disabled = false;
+}
+
+function copyJson() {
+  const text = document.getElementById('json-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✓ Gekopieerd!';
+    setTimeout(() => btn.textContent = '📋 Kopieer JSON', 2000);
+  });
+}
+
+// ── Missing image handler ────────────────────────────────
+function handleMissingImg(img, page) {
+  const wrap = img.parentElement;
+  img.remove();
+  const placeholder = document.createElement('div');
+  placeholder.className = 'no-template';
+  placeholder.innerHTML = `
+    <div>
+      <p style="font-size:20px; margin-bottom:8px;">⚠️</p>
+      <p>Template <strong>${page}_template.jpg</strong> niet gevonden</p>
+      <p style="margin-top:6px; font-size:12px; color:#6b7280;">
+        Upload het bestand naar <code>static/${page}_template.jpg</code> in je repository
+      </p>
+    </div>`;
+  wrap.insertBefore(placeholder, wrap.firstChild);
+}
+
+// ── Init ─────────────────────────────────────────────────
+async function init() {
+  // Load current coords from app
+  try {
+    const r = await fetch('/get-coords');
+    coords   = await r.json();
+  } catch (e) {
+    console.warn('Kon coördinaten niet laden:', e);
+  }
+
+  const imgCover = document.getElementById('img-cover');
+  const imgData  = document.getElementById('img-data');
+
+  // Position as soon as both images are loaded
+  let loadCount = 0;
+  function onImgLoad() {
+    loadCount++;
+    if (loadCount >= 2) {
+      positionAll('cover');
+      positionAll('data');
+    }
+  }
+
+  if (imgCover.complete && imgCover.naturalWidth > 0) onImgLoad();
+  else imgCover.addEventListener('load', onImgLoad);
+
+  if (imgData.complete && imgData.naturalWidth > 0) onImgLoad();
+  else imgData.addEventListener('load', onImgLoad);
+
+  // Edge case: images already loaded before listener attached
+  if (loadCount === 0 && imgCover.complete && imgData.complete) {
+    positionAll('cover');
+    positionAll('data');
+  }
+
+  setupDrags();
+
+  // Reposition on window resize
+  window.addEventListener('resize', () => {
+    positionAll(activeTab);
+  });
+}
+
+init();
+</script>
+</body>
+</html>

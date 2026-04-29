@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import csv, io, os, base64
+import csv, io, os, base64, json
 from datetime import datetime, date
 
 app = Flask(__name__)
@@ -38,6 +38,41 @@ DATA_WEERGAVEN_Y= 147   # rij 2: weergaven / bereik
 DATA_BEREIK_Y   = 147
 
 DATA_SOLLICIT_Y = 182   # rij 3: sollicitaties
+
+
+# ════════════════════════════════════════════════════════════
+#  COÖRDINATEN LADEN  (uit static/coords.json of hardcoded)
+# ════════════════════════════════════════════════════════════
+
+def _load_coords():
+    """Laad overlay-coördinaten uit static/coords.json of /tmp/coords.json.
+    Valt terug op de hardcoded constanten hierboven als geen bestand bestaat."""
+    for path in [
+        os.path.join(os.path.dirname(__file__), 'static', 'coords.json'),
+        '/tmp/coords.json',
+    ]:
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        'cover_naam_x':    COVER_NAAM_X,
+        'cover_naam_y':    COVER_NAAM_Y,
+        'cover_naam_size': COVER_NAAM_SIZE,
+        'data_titel_x':    DATA_TITEL_X,
+        'data_titel_y':    DATA_TITEL_Y,
+        'data_datum_x':    DATA_DATUM_X,
+        'data_datum_y':    DATA_DATUM_Y,
+        'data_val_size':   DATA_VAL_SIZE,
+        'data_sessies_y':  DATA_SESSIES_Y,
+        'data_tijd_y':     DATA_TIJD_Y,
+        'data_scroll_y':   DATA_SCROLL_Y,
+        'data_weergaven_y':DATA_WEERGAVEN_Y,
+        'data_bereik_y':   DATA_BEREIK_Y,
+        'data_sollicit_y': DATA_SOLLICIT_Y,
+    }
+
 
 # ── Dutch month abbreviations ────────────────────────────────
 DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun',
@@ -246,17 +281,21 @@ def _make_pdf(data):
     pdf.set_auto_page_break(False)
     pdf.set_margins(0, 0, 0)
 
-    _cover_page(pdf, data)
+    coords = _load_coords()
+    _cover_page(pdf, data, coords)
 
     # Load the shared data-page template once; reused for every vacature
     data_tpl = _load_static_img('data_template.jpg')
     for v in data.get('vacatures', []):
-        _results_page(pdf, v, data_tpl)
+        _results_page(pdf, v, data_tpl, coords)
 
     return bytes(pdf.output())
 
 
-def _cover_page(pdf, data):
+def _cover_page(pdf, data, coords=None):
+    if coords is None:
+        coords = _load_coords()
+
     pdf.add_page()
 
     # Dark panel starts at ~54 % of page width
@@ -278,20 +317,38 @@ def _cover_page(pdf, data):
         pdf.multi_cell(right_w - 14, 14, 'Wervingsrapport\nvoor', align='L')
 
     # ── Overlay: client name ──────────────────────────────────
+    naam_x    = coords.get('cover_naam_x',    COVER_NAAM_X)
+    naam_y    = coords.get('cover_naam_y',    COVER_NAAM_Y)
+    naam_size = coords.get('cover_naam_size', COVER_NAAM_SIZE)
     pdf.set_text_color(*GREEN)
-    pdf.set_font('Helvetica', 'B', COVER_NAAM_SIZE)
-    pdf.set_xy(COVER_NAAM_X, COVER_NAAM_Y)
-    pdf.multi_cell(PAGE_W - COVER_NAAM_X - 8, COVER_NAAM_SIZE * 0.5, data.get('klant_naam', ''), align='L')
+    pdf.set_font('Helvetica', 'B', naam_size)
+    pdf.set_xy(naam_x, naam_y)
+    pdf.multi_cell(PAGE_W - naam_x - 8, naam_size * 0.5, data.get('klant_naam', ''), align='L')
 
 
-def _results_page(pdf, v, data_template_bytes=None):
+def _results_page(pdf, v, data_template_bytes=None, coords=None):
+    if coords is None:
+        coords = _load_coords()
+
     pdf.add_page()
 
     # ── Layout constants (A4 landscape = 297 × 210 mm) ───────
     BX    = 10   # left/right margin
-    HDR_H = 14   # header bar height
     cw    = PAGE_W - BX * 2   # 277 mm
     gap   = 4
+
+    # ── Read coords ──────────────────────────────────────────
+    titel_x     = coords.get('data_titel_x',     DATA_TITEL_X)
+    titel_y     = coords.get('data_titel_y',     DATA_TITEL_Y)
+    datum_x     = coords.get('data_datum_x',     DATA_DATUM_X)
+    datum_y     = coords.get('data_datum_y',     DATA_DATUM_Y)
+    val_size    = coords.get('data_val_size',    DATA_VAL_SIZE)
+    sessies_y   = coords.get('data_sessies_y',   DATA_SESSIES_Y)
+    tijd_y      = coords.get('data_tijd_y',      DATA_TIJD_Y)
+    scroll_y    = coords.get('data_scroll_y',    DATA_SCROLL_Y)
+    weergaven_y = coords.get('data_weergaven_y', DATA_WEERGAVEN_Y)
+    bereik_y    = coords.get('data_bereik_y',    DATA_BEREIK_Y)
+    sollicit_y  = coords.get('data_sollicit_y',  DATA_SOLLICIT_Y)
 
     # ── Full-page data template ──────────────────────────────
     if data_template_bytes:
@@ -299,18 +356,18 @@ def _results_page(pdf, v, data_template_bytes=None):
         pdf.image(data_template_bytes, x=0, y=0, w=PAGE_W, h=PAGE_H)
 
     # ── Overlay: vacature title (header centre, green bold) ──
-    title_w = DATA_DATUM_X - DATA_TITEL_X - 4
+    title_w = datum_x - titel_x - 4
     pdf.set_font('Helvetica', 'B', 11)
     pdf.set_text_color(*GREEN)
-    pdf.set_xy(DATA_TITEL_X, DATA_TITEL_Y)
+    pdf.set_xy(titel_x, titel_y)
     pdf.cell(title_w, 6, v.get('titel', ''), align='C', ln=0)
 
     # ── Overlay: date range (header right, muted) ────────────
     date_str = f"{v.get('fmt_start', '')} - {v.get('fmt_end', '')}"
-    pill_w   = PAGE_W - DATA_DATUM_X - 6
+    pill_w   = PAGE_W - datum_x - 6
     pdf.set_font('Helvetica', '', 7)
     pdf.set_text_color(*MUTED)
-    pdf.set_xy(DATA_DATUM_X, DATA_DATUM_Y)
+    pdf.set_xy(datum_x, datum_y)
     pdf.cell(pill_w, 6, date_str, align='C', ln=0)
 
     # ── Card layout (matches the template design) ────────────
@@ -323,22 +380,22 @@ def _results_page(pdf, v, data_template_bytes=None):
 
     # Helper: draw a value CENTRED horizontally in its card
     def val(card_x, card_w, y, text):
-        pdf.set_font('Helvetica', 'B', DATA_VAL_SIZE)
+        pdf.set_font('Helvetica', 'B', val_size)
         pdf.set_text_color(*DARK)
         pdf.set_xy(card_x, y)
         pdf.cell(card_w, 10, text, align='C', ln=0)
 
     # ── Section 1 — Clarity (3 cards) ────────────────────────
-    val(BX,                   cw1, DATA_SESSIES_Y,   v.get('fmt_sessions',    '0'))
-    val(BX + (cw1 + gap),     cw1, DATA_TIJD_Y,      v.get('fmt_time',        '0 sec'))
-    val(BX + 2 * (cw1 + gap), cw1, DATA_SCROLL_Y,    v.get('fmt_scroll',      '0%'))
+    val(BX,                   cw1, sessies_y,   v.get('fmt_sessions',    '0'))
+    val(BX + (cw1 + gap),     cw1, tijd_y,      v.get('fmt_time',        '0 sec'))
+    val(BX + 2 * (cw1 + gap), cw1, scroll_y,    v.get('fmt_scroll',      '0%'))
 
     # ── Section 2 — Meta (2 cards) ───────────────────────────
-    val(BX,                   cw2, DATA_WEERGAVEN_Y, v.get('fmt_impressions', '0'))
-    val(BX + (cw2 + gap),     cw2, DATA_BEREIK_Y,    v.get('fmt_reach',       '0'))
+    val(BX,                   cw2, weergaven_y, v.get('fmt_impressions', '0'))
+    val(BX + (cw2 + gap),     cw2, bereik_y,    v.get('fmt_reach',       '0'))
 
     # ── Section 3 — Sollicitaties (1 card, kleinere breedte) ─
-    val(BX,                   cw1, DATA_SOLLICIT_Y,  str(v.get('sollicitaties', 0)))
+    val(BX,                   cw1, sollicit_y,  str(v.get('sollicitaties', 0)))
 
 
 # ════════════════════════════════════════════════════════════
@@ -481,6 +538,64 @@ def calibreer():
     buf = io.BytesIO(bytes(pdf.output()))
     return send_file(buf, mimetype='application/pdf',
                      as_attachment=True, download_name='calibreer.pdf')
+
+
+@app.route('/positioneer')
+def positioneer():
+    """Drag-and-drop coördinaten-editor voor de overlay-tekstblokken."""
+    return render_template('positioneer.html')
+
+
+@app.route('/get-coords')
+def get_coords():
+    """Geef de huidige overlay-coördinaten terug als JSON."""
+    return jsonify(_load_coords())
+
+
+@app.route('/save-coords', methods=['POST'])
+def save_coords_route():
+    """Sla overlay-coördinaten op in static/coords.json (lokaal) of /tmp (Vercel)."""
+    try:
+        new_coords = request.json
+        if not isinstance(new_coords, dict):
+            return jsonify({'error': 'Ongeldige data'}), 400
+
+        written_to_static = False
+        static_path = os.path.join(os.path.dirname(__file__), 'static', 'coords.json')
+        try:
+            with open(static_path, 'w') as f:
+                json.dump(new_coords, f, indent=2)
+            written_to_static = True
+        except OSError:
+            pass
+
+        # Altijd schrijven naar /tmp als fallback (werkt ook op Vercel)
+        try:
+            with open('/tmp/coords.json', 'w') as f:
+                json.dump(new_coords, f, indent=2)
+        except OSError:
+            pass
+
+        return jsonify({
+            'ok': True,
+            'written_to_static': written_to_static,
+            'coords_json': json.dumps(new_coords, indent=2),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
+@app.route('/template-img/<name>')
+def template_img(name):
+    """Serveer een template-afbeelding voor de positioneer-editor."""
+    allowed = {'cover': 'cover_template.jpg', 'data': 'data_template.jpg'}
+    if name not in allowed:
+        return 'Not found', 404
+    path = os.path.join(os.path.dirname(__file__), 'static', allowed[name])
+    if not os.path.exists(path):
+        return 'Template image not found in static/', 404
+    return send_file(path, mimetype='image/jpeg')
 
 
 if __name__ == '__main__':

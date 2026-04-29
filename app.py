@@ -65,12 +65,20 @@ def _load_coords():
         'data_datum_x':    DATA_DATUM_X,
         'data_datum_y':    DATA_DATUM_Y,
         'data_val_size':   DATA_VAL_SIZE,
-        'data_sessies_y':  DATA_SESSIES_Y,
-        'data_tijd_y':     DATA_TIJD_Y,
-        'data_scroll_y':   DATA_SCROLL_Y,
-        'data_weergaven_y':DATA_WEERGAVEN_Y,
-        'data_bereik_y':   DATA_BEREIK_Y,
-        'data_sollicit_y': DATA_SOLLICIT_Y,
+        'data_sessies_y':   DATA_SESSIES_Y,
+        'data_tijd_y':      DATA_TIJD_Y,
+        'data_scroll_y':    DATA_SCROLL_Y,
+        'data_weergaven_y': DATA_WEERGAVEN_Y,
+        'data_bereik_y':    DATA_BEREIK_Y,
+        'data_sollicit_y':  DATA_SOLLICIT_Y,
+        # X positions for card values (computed from card geometry as defaults)
+        # BX=10, gap=4, cw=277, cw1≈89.67, cw2=136.5
+        'data_sessies_x':   10.0,
+        'data_tijd_x':      103.7,
+        'data_scroll_x':    197.3,
+        'data_weergaven_x': 10.0,
+        'data_bereik_x':    150.5,
+        'data_sollicit_x':  10.0,
     }
 
 
@@ -349,6 +357,12 @@ def _results_page(pdf, v, data_template_bytes=None, coords=None):
     weergaven_y = coords.get('data_weergaven_y', DATA_WEERGAVEN_Y)
     bereik_y    = coords.get('data_bereik_y',    DATA_BEREIK_Y)
     sollicit_y  = coords.get('data_sollicit_y',  DATA_SOLLICIT_Y)
+    sessies_x   = coords.get('data_sessies_x',   10.0)
+    tijd_x      = coords.get('data_tijd_x',      103.7)
+    scroll_x    = coords.get('data_scroll_x',    197.3)
+    weergaven_x = coords.get('data_weergaven_x', 10.0)
+    bereik_x    = coords.get('data_bereik_x',    150.5)
+    sollicit_x  = coords.get('data_sollicit_x',  10.0)
 
     # ── Full-page data template ──────────────────────────────
     if data_template_bytes:
@@ -386,16 +400,16 @@ def _results_page(pdf, v, data_template_bytes=None, coords=None):
         pdf.cell(card_w, 10, text, align='C', ln=0)
 
     # ── Section 1 — Clarity (3 cards) ────────────────────────
-    val(BX,                   cw1, sessies_y,   v.get('fmt_sessions',    '0'))
-    val(BX + (cw1 + gap),     cw1, tijd_y,      v.get('fmt_time',        '0 sec'))
-    val(BX + 2 * (cw1 + gap), cw1, scroll_y,    v.get('fmt_scroll',      '0%'))
+    val(sessies_x,   cw1, sessies_y,   v.get('fmt_sessions',    '0'))
+    val(tijd_x,      cw1, tijd_y,      v.get('fmt_time',        '0 sec'))
+    val(scroll_x,    cw1, scroll_y,    v.get('fmt_scroll',      '0%'))
 
     # ── Section 2 — Meta (2 cards) ───────────────────────────
-    val(BX,                   cw2, weergaven_y, v.get('fmt_impressions', '0'))
-    val(BX + (cw2 + gap),     cw2, bereik_y,    v.get('fmt_reach',       '0'))
+    val(weergaven_x, cw2, weergaven_y, v.get('fmt_impressions', '0'))
+    val(bereik_x,    cw2, bereik_y,    v.get('fmt_reach',       '0'))
 
     # ── Section 3 — Sollicitaties (1 card, kleinere breedte) ─
-    val(BX,                   cw1, sollicit_y,  str(v.get('sollicitaties', 0)))
+    val(sollicit_x,  cw1, sollicit_y,  str(v.get('sollicitaties', 0)))
 
 
 # ════════════════════════════════════════════════════════════

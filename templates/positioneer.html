@@ -17,20 +17,19 @@ body {
 header {
   background: #1f2937;
   border-bottom: 2px solid #27ae60;
-  padding: 12px 20px;
+  padding: 11px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
 }
-header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
-.back-link { color: #6b7280; text-decoration: none; font-size: 13px; white-space: nowrap; }
+header h1 { font-size: 16px; color: #27ae60; font-weight: 700; }
+.back-link { color: #6b7280; text-decoration: none; font-size: 13px; }
 .back-link:hover { color: #27ae60; }
 
 .toolbar {
   background: #1f2937;
-  border-bottom: 1px solid #374151;
-  padding: 10px 20px;
+  border-bottom: 1px solid #2d3748;
+  padding: 9px 20px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -38,71 +37,54 @@ header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
 }
 
 .tab-btn {
-  padding: 6px 16px;
+  padding: 5px 16px;
   border: 1px solid #374151;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   background: #374151;
   color: #9ca3af;
-  transition: all 0.15s;
 }
 .tab-btn:hover { background: #4b5563; color: #e5e7eb; }
-.tab-btn.active { background: #27ae60; border-color: #27ae60; color: white; }
+.tab-btn.active { background: #27ae60; border-color: #27ae60; color: #fff; }
 
 .save-btn {
   margin-left: auto;
-  padding: 7px 20px;
+  padding: 6px 20px;
   background: #27ae60;
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
 }
 .save-btn:hover { background: #219a52; }
 .save-btn:disabled { opacity: 0.5; cursor: default; }
 
-#status {
-  font-size: 13px;
-  min-width: 140px;
-  color: #27ae60;
-}
+#status { font-size: 12px; color: #27ae60; min-width: 140px; }
 
-.legend {
-  padding: 8px 20px;
+.hint {
+  padding: 7px 20px;
   font-size: 11px;
   color: #6b7280;
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
   background: #1a2332;
-  border-bottom: 1px solid #374151;
-}
-.legend-item { display: flex; align-items: center; gap: 5px; }
-.legend-swatch {
-  width: 14px; height: 8px; border-radius: 2px;
-  border: 2px dashed;
+  border-bottom: 1px solid #2d3748;
 }
 
-.editor-area {
-  padding: 20px;
-  overflow-x: auto;
-}
+/* ── Editor canvas ───────────────────────────────────── */
+.editor-area { padding: 16px 20px; overflow-x: auto; }
 
 .canvas-wrap {
   position: relative;
   display: inline-block;
   line-height: 0;
   border: 1px solid #374151;
-  border-radius: 4px;
-  overflow: hidden;
+  border-radius: 3px;
   max-width: 100%;
+  overflow: hidden;
 }
-
 .canvas-wrap img {
   display: block;
   width: 100%;
@@ -110,11 +92,13 @@ header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
   height: auto;
   user-select: none;
   pointer-events: none;
-  background: #374151;
+  background: #2d3748;
 }
 
-/* Placeholder when image is missing */
 .no-template {
+  width: 1200px;
+  max-width: 100%;
+  aspect-ratio: 297 / 210;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,73 +106,118 @@ header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
   color: #6b7280;
   font-size: 14px;
   text-align: center;
-  padding: 24px;
-  width: 1200px;
-  max-width: 100%;
-  aspect-ratio: 297 / 210;
 }
 
+/* ── Draggable text blocks ───────────────────────────── */
+/*
+  Each block renders the text as it will appear in the final PDF:
+  - Correct colour (green for titles/names, dark for values, muted for dates)
+  - Approximate font size relative to the canvas scale
+  - No border by default — just the text with a subtle drop-shadow
+  On hover/drag: thin outline + coord tooltip appear
+*/
 .block {
   position: absolute;
-  border: 2px dashed rgba(255,255,255,0.7);
-  background: rgba(0, 0, 0, 0.65);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
   cursor: grab;
   user-select: none;
-  line-height: 1.5;
-  transform: translateY(-50%);  /* vertical-center on Y coord */
+  line-height: 1;
+  /* small padding so outline doesn't clip the text */
+  padding: 2px 3px;
+  border-radius: 2px;
 }
 .block:active { cursor: grabbing; }
-.block.dragging { box-shadow: 0 0 0 3px rgba(255,255,255,0.25); z-index: 999 !important; }
+.block.dragging { z-index: 999 !important; }
 
-/* Color classes */
-.blk-cover  { border-color: #27ae60; color: #27ae60; }
-.blk-header { border-color: #60a5fa; color: #60a5fa; }
-.blk-row1   { border-color: #f87171; color: #f87171; }
-.blk-row2   { border-color: #818cf8; color: #818cf8; }
-.blk-row3   { border-color: #c084fc; color: #c084fc; }
+/* Outline ring — invisible until hover/drag */
+.block::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1px dashed rgba(255, 255, 255, 0.45);
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.block:hover::after,
+.block.dragging::after { opacity: 1; }
 
-.blk-label  { font-size: 9px; font-weight: 600; opacity: 0.75; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
-.blk-value  { display: block; font-size: 12px; }
-.blk-coord  { display: block; font-size: 9px; font-weight: 400; opacity: 0.65; margin-top: 1px; }
+/* Coord info badge — shown above block on hover/drag */
+.block-coord {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(0,0,0,0.85);
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 10;
+}
+.block:hover .block-coord,
+.block.dragging .block-coord { opacity: 1; }
 
-/* JSON download panel */
+/* Drag-handle pill — shown above coord badge on hover/drag */
+.block-handle {
+  position: absolute;
+  bottom: calc(100% + 17px);
+  left: 0;
+  font-size: 9px;
+  color: #9ca3af;
+  background: rgba(0,0,0,0.7);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.block:hover .block-handle,
+.block.dragging .block-handle { opacity: 1; }
+
+/* Per-block text appearance */
+/* Cover: client name — big green bold */
+.blk-cover-naam  { font-weight: 700; color: #27ae60;
+                   text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+
+/* Data header: vacature title — green bold */
+.blk-data-titel  { font-weight: 700; color: #27ae60;
+                   text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+
+/* Data header: date range — muted */
+.blk-data-datum  { font-weight: 400; color: #9ca3af;
+                   text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+
+/* Card values — large dark bold (rendered on light card bg in PDF) */
+.blk-val         { font-weight: 700; color: #1a1a1a;
+                   text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
+
+/* ── JSON fallback panel ─────────────────────────────── */
 #json-panel {
   display: none;
   margin: 0 20px 20px;
   background: #1f2937;
   border: 1px solid #374151;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 6px;
+  padding: 14px;
 }
-#json-panel h3 { font-size: 13px; color: #27ae60; margin-bottom: 8px; }
-#json-panel p  { font-size: 12px; color: #9ca3af; margin-bottom: 10px; line-height: 1.5; }
+#json-panel h3 { font-size: 13px; color: #27ae60; margin-bottom: 6px; }
+#json-panel p  { font-size: 12px; color: #9ca3af; margin-bottom: 8px; line-height: 1.5; }
 #json-output {
-  background: #111827;
-  border: 1px solid #374151;
-  border-radius: 4px;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 11px;
-  color: #86efac;
-  white-space: pre;
-  overflow-x: auto;
-  max-height: 200px;
-  overflow-y: auto;
+  background: #111827; border: 1px solid #374151; border-radius: 3px;
+  padding: 8px; font: 11px/1.4 monospace; color: #86efac;
+  white-space: pre; overflow-x: auto; max-height: 180px; overflow-y: auto;
 }
 .copy-btn {
-  margin-top: 8px;
-  padding: 5px 14px;
-  background: #374151;
-  color: #e5e7eb;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
+  margin-top: 6px; padding: 4px 12px;
+  background: #374151; color: #e5e7eb;
+  border: none; border-radius: 3px; font-size: 11px; cursor: pointer;
 }
 .copy-btn:hover { background: #4b5563; }
 </style>
@@ -202,351 +231,278 @@ header h1 { font-size: 17px; color: #27ae60; font-weight: 700; }
 
 <div class="toolbar">
   <button class="tab-btn active" onclick="showTab('cover')" id="tab-cover">🖼 Cover</button>
-  <button class="tab-btn" onclick="showTab('data')" id="tab-data">📊 Datapagina</button>
+  <button class="tab-btn"        onclick="showTab('data')"  id="tab-data">📊 Datapagina</button>
   <span id="status"></span>
   <button class="save-btn" onclick="saveAll()" id="save-btn">💾 Opslaan</button>
 </div>
 
-<div class="legend">
-  <span class="legend-item">
-    <span class="legend-swatch" style="border-color:#27ae60;background:rgba(39,174,96,.15)"></span>
-    Klantnaam (cover)
-  </span>
-  <span class="legend-item">
-    <span class="legend-swatch" style="border-color:#60a5fa;background:rgba(96,165,250,.15)"></span>
-    Kopteksten (vrij slepen)
-  </span>
-  <span class="legend-item">
-    <span class="legend-swatch" style="border-color:#f87171;background:rgba(248,113,113,.15)"></span>
-    Rij 1 — sessies / tijd / scroll
-  </span>
-  <span class="legend-item">
-    <span class="legend-swatch" style="border-color:#818cf8;background:rgba(129,140,248,.15)"></span>
-    Rij 2 — weergaven / bereik
-  </span>
-  <span class="legend-item">
-    <span class="legend-swatch" style="border-color:#c084fc;background:rgba(192,132,252,.15)"></span>
-    Rij 3 — sollicitaties
-  </span>
-  <span class="legend-item" style="color:#9ca3af; font-style:italic;">
-    Gekleurde blokken = alleen verticaal slepen (X staat vast)
-  </span>
+<div class="hint">
+  Versleep de tekstblokken naar de juiste plek. De tekst is zo gestyled als in de uiteindelijke PDF.
+  Zweef over een blok om de exacte coördinaten (mm) te zien. Klik <strong>Opslaan</strong> als alles klopt.
 </div>
 
-<!-- ── COVER EDITOR ─────────────────────────────────────── -->
+<!-- ═══════════════════════  COVER  ══════════════════════════ -->
 <div class="editor-area">
-  <div id="page-cover" class="canvas-wrap">
-    <img id="img-cover" src="/template-img/cover" alt="Cover template"
-         onerror="handleMissingImg(this, 'cover')">
+<div id="page-cover" class="canvas-wrap">
+  <img id="img-cover" src="/template-img/cover" alt="Cover template"
+       onerror="handleMissingImg(this,'cover')">
 
-    <div class="block blk-cover"
-         id="blk-cover-naam"
-         data-page="cover"
-         data-cx="cover_naam_x"
-         data-cy="cover_naam_y"
-         data-yonly="false">
-      <span class="blk-label">Klantnaam</span>
-      <span class="blk-value">Klant B.V.</span>
-      <span class="blk-coord" id="coord-cover-naam"></span>
-    </div>
-  </div>
-
-  <!-- ── DATA EDITOR ──────────────────────────────────────── -->
-  <div id="page-data" class="canvas-wrap" style="display:none;">
-    <img id="img-data" src="/template-img/data" alt="Data template"
-         onerror="handleMissingImg(this, 'data')">
-
-    <!-- Koptekst: vacaturetitel -->
-    <div class="block blk-header"
-         id="blk-data-titel"
-         data-page="data"
-         data-cx="data_titel_x"
-         data-cy="data_titel_y"
-         data-yonly="false">
-      <span class="blk-label">Vacaturetitel</span>
-      <span class="blk-value">Medewerker Groenvoorziening</span>
-      <span class="blk-coord" id="coord-data-titel"></span>
-    </div>
-
-    <!-- Koptekst: datumreeks -->
-    <div class="block blk-header"
-         id="blk-data-datum"
-         data-page="data"
-         data-cx="data_datum_x"
-         data-cy="data_datum_y"
-         data-yonly="false">
-      <span class="blk-label">Datumreeks</span>
-      <span class="blk-value">12 jan - 28 feb 2026</span>
-      <span class="blk-coord" id="coord-data-datum"></span>
-    </div>
-
-    <!-- Rij 1: sessies (card-center X = 54.83 mm) -->
-    <div class="block blk-row1"
-         id="blk-data-sessies"
-         data-page="data"
-         data-cy="data_sessies_y"
-         data-yonly="true"
-         data-fx="54.83">
-      <span class="blk-label">Sessies</span>
-      <span class="blk-value">1.234</span>
-      <span class="blk-coord" id="coord-data-sessies"></span>
-    </div>
-
-    <!-- Rij 1: gem. tijd (card-center X = 148.5 mm) -->
-    <div class="block blk-row1"
-         id="blk-data-tijd"
-         data-page="data"
-         data-cy="data_tijd_y"
-         data-yonly="true"
-         data-fx="148.5">
-      <span class="blk-label">Gem. tijd</span>
-      <span class="blk-value">45 sec</span>
-      <span class="blk-coord" id="coord-data-tijd"></span>
-    </div>
-
-    <!-- Rij 1: scroll (card-center X = 242.17 mm) -->
-    <div class="block blk-row1"
-         id="blk-data-scroll"
-         data-page="data"
-         data-cy="data_scroll_y"
-         data-yonly="true"
-         data-fx="242.17">
-      <span class="blk-label">Scroll</span>
-      <span class="blk-value">68,50%</span>
-      <span class="blk-coord" id="coord-data-scroll"></span>
-    </div>
-
-    <!-- Rij 2: weergaven (card-center X = 78.25 mm) -->
-    <div class="block blk-row2"
-         id="blk-data-weergaven"
-         data-page="data"
-         data-cy="data_weergaven_y"
-         data-yonly="true"
-         data-fx="78.25">
-      <span class="blk-label">Weergaven</span>
-      <span class="blk-value">90.601</span>
-      <span class="blk-coord" id="coord-data-weergaven"></span>
-    </div>
-
-    <!-- Rij 2: bereik (card-center X = 218.75 mm) -->
-    <div class="block blk-row2"
-         id="blk-data-bereik"
-         data-page="data"
-         data-cy="data_bereik_y"
-         data-yonly="true"
-         data-fx="218.75">
-      <span class="blk-label">Bereik</span>
-      <span class="blk-value">45.234</span>
-      <span class="blk-coord" id="coord-data-bereik"></span>
-    </div>
-
-    <!-- Rij 3: sollicitaties (card-center X = 54.83 mm) -->
-    <div class="block blk-row3"
-         id="blk-data-sollicit"
-         data-page="data"
-         data-cy="data_sollicit_y"
-         data-yonly="true"
-         data-fx="54.83">
-      <span class="blk-label">Sollicitaties</span>
-      <span class="blk-value">12</span>
-      <span class="blk-coord" id="coord-data-sollicit"></span>
-    </div>
+  <!-- Klantnaam -->
+  <div class="block blk-cover-naam"
+       id="blk-cover-naam"
+       data-page="cover"
+       data-cx="cover_naam_x"
+       data-cy="cover_naam_y"
+       data-pt="28">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-cover-naam"></span>
+    <span class="block-text">Klant B.V.</span>
   </div>
 </div>
 
-<!-- JSON download panel (shown when Vercel can't write to static/) -->
+<!-- ═══════════════════════  DATA  ═══════════════════════════ -->
+<div id="page-data" class="canvas-wrap" style="display:none;">
+  <img id="img-data" src="/template-img/data" alt="Data template"
+       onerror="handleMissingImg(this,'data')">
+
+  <!-- Vacaturetitel -->
+  <div class="block blk-data-titel"
+       id="blk-data-titel"
+       data-page="data"
+       data-cx="data_titel_x"
+       data-cy="data_titel_y"
+       data-pt="11">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-titel"></span>
+    <span class="block-text">Medewerker Groenvoorziening</span>
+  </div>
+
+  <!-- Datumreeks -->
+  <div class="block blk-data-datum"
+       id="blk-data-datum"
+       data-page="data"
+       data-cx="data_datum_x"
+       data-cy="data_datum_y"
+       data-pt="7">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-datum"></span>
+    <span class="block-text">12 jan - 28 feb 2026</span>
+  </div>
+
+  <!-- Sessies -->
+  <div class="block blk-val"
+       id="blk-data-sessies"
+       data-page="data"
+       data-cx="data_sessies_x"
+       data-cy="data_sessies_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-sessies"></span>
+    <span class="block-text">1.234</span>
+  </div>
+
+  <!-- Gem. tijd -->
+  <div class="block blk-val"
+       id="blk-data-tijd"
+       data-page="data"
+       data-cx="data_tijd_x"
+       data-cy="data_tijd_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-tijd"></span>
+    <span class="block-text">45 sec</span>
+  </div>
+
+  <!-- Scroll -->
+  <div class="block blk-val"
+       id="blk-data-scroll"
+       data-page="data"
+       data-cx="data_scroll_x"
+       data-cy="data_scroll_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-scroll"></span>
+    <span class="block-text">68,50%</span>
+  </div>
+
+  <!-- Weergaven -->
+  <div class="block blk-val"
+       id="blk-data-weergaven"
+       data-page="data"
+       data-cx="data_weergaven_x"
+       data-cy="data_weergaven_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-weergaven"></span>
+    <span class="block-text">90.601</span>
+  </div>
+
+  <!-- Bereik -->
+  <div class="block blk-val"
+       id="blk-data-bereik"
+       data-page="data"
+       data-cx="data_bereik_x"
+       data-cy="data_bereik_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-bereik"></span>
+    <span class="block-text">45.234</span>
+  </div>
+
+  <!-- Sollicitaties -->
+  <div class="block blk-val"
+       id="blk-data-sollicit"
+       data-page="data"
+       data-cx="data_sollicit_x"
+       data-cy="data_sollicit_y"
+       data-pt="22">
+    <span class="block-handle">slepen</span>
+    <span class="block-coord" id="coord-data-sollicit"></span>
+    <span class="block-text">12</span>
+  </div>
+</div>
+</div><!-- /editor-area -->
+
+<!-- JSON fallback panel (Vercel) -->
 <div id="json-panel">
   <h3>📋 Coördinaten opslaan op Vercel</h3>
-  <p>
-    Op Vercel kan het bestand niet automatisch worden opgeslagen.
-    Kopieer de JSON hieronder, sla het op als <strong>static/coords.json</strong>
-    in je repository en push de wijziging.
-  </p>
+  <p>Op Vercel kan het bestand niet automatisch worden opgeslagen.
+     Kopieer de JSON hieronder en sla op als <strong>static/coords.json</strong> in je repository, dan pushen.</p>
   <pre id="json-output"></pre>
   <button class="copy-btn" onclick="copyJson()">📋 Kopieer JSON</button>
 </div>
 
 <script>
-// ── A4 landscape dimensions ──────────────────────────────
+// ── A4 landscape ─────────────────────────────────────────────
 const PAGE_W_MM = 297;
-const PAGE_H_MM = 210;
 
-// ── Card geometry (must match app.py) ───────────────────
-const BX = 10, GAP = 4;
-const CW  = PAGE_W_MM - BX * 2;           // 277 mm
-const CW1 = (CW - GAP * 2) / 3;           // ≈89.67 mm  (3-card row)
-const CW2 = (CW - GAP)     / 2;           // 136.5 mm   (2-card row)
-
-// Card center X positions (mm) — these are the fixed_x values (data-fx)
-// Row 1: BX + CW1/2, BX+(CW1+GAP)+CW1/2, BX+2*(CW1+GAP)+CW1/2
-// Row 2: BX + CW2/2, BX+(CW2+GAP)+CW2/2
-
+// ── Live coords (loaded from /get-coords) ────────────────────
 let coords   = {};
 let activeTab = 'cover';
 
-// ── Scale helper ────────────────────────────────────────
+// ── Scale: pixels per mm ─────────────────────────────────────
 function getScale(page) {
   const img = document.getElementById('img-' + page);
   if (!img || !img.naturalWidth) return 3.0;
   return img.getBoundingClientRect().width / PAGE_W_MM;
 }
 
-// ── Position all blocks for a page ──────────────────────
-function positionAll(page) {
-  const s = getScale(page);
-  document.querySelectorAll(`[data-page="${page}"]`).forEach(el => {
-    placeBlock(el, s);
-  });
+// ── Set font size relative to current canvas scale ───────────
+// 1 pt = 0.3528 mm
+function applyFontSize(el, s) {
+  const pt = parseFloat(el.dataset.pt || 12);
+  el.querySelector('.block-text').style.fontSize = (pt * 0.3528 * s) + 'px';
 }
 
+// ── Position one block ───────────────────────────────────────
 function placeBlock(el, s) {
-  const yonly  = el.dataset.yonly === 'true';
-  const cy     = el.dataset.cy;
-  const cx     = el.dataset.cx;
-  const fx     = parseFloat(el.dataset.fx || 0);
+  const cx  = el.dataset.cx;
+  const cy  = el.dataset.cy;
+  const x_mm = coords[cx] ?? 0;
+  const y_mm = coords[cy] ?? 0;
 
-  const y_mm   = coords[cy] ?? 0;
-  const x_mm   = yonly ? fx : (coords[cx] ?? 0);
-
-  // Use card-center X for Y-only blocks so the block appears centered over the number
   el.style.left = (x_mm * s) + 'px';
   el.style.top  = (y_mm * s) + 'px';
-  // transform: translateX(-50%) for y-only (center on card), translateY(-50%) always
-  if (yonly) {
-    el.style.transform = 'translate(-50%, -50%)';
-  } else {
-    el.style.transform = 'translateY(-50%)';
-  }
-
-  refreshLabel(el, x_mm, y_mm, yonly);
+  applyFontSize(el, s);
+  updateCoordLabel(el, x_mm, y_mm);
 }
 
-function refreshLabel(el, x_mm, y_mm, yonly) {
-  const coordEl = el.querySelector('.blk-coord');
-  if (!coordEl) return;
-  if (yonly) {
-    coordEl.textContent = `y = ${y_mm.toFixed(1)} mm`;
-  } else {
-    coordEl.textContent = `x = ${x_mm.toFixed(1)},  y = ${y_mm.toFixed(1)} mm`;
-  }
+function updateCoordLabel(el, x_mm, y_mm) {
+  const lbl = el.querySelector('.block-coord');
+  if (lbl) lbl.textContent = `x ${x_mm.toFixed(1)}  y ${y_mm.toFixed(1)} mm`;
 }
 
-// ── Drag setup ──────────────────────────────────────────
+// ── Position all blocks for a page ───────────────────────────
+function positionAll(page) {
+  const s = getScale(page);
+  document.querySelectorAll(`[data-page="${page}"]`).forEach(el => placeBlock(el, s));
+}
+
+// ── Drag ─────────────────────────────────────────────────────
 function setupDrags() {
   document.querySelectorAll('.block').forEach(el => {
     let active = false;
-    let startMouseX, startMouseY, startLeft, startTop;
+    let startMX, startMY, startLeft, startTop;
 
-    el.addEventListener('mousedown', e => {
-      active = true;
-      startMouseX = e.clientX;
-      startMouseY = e.clientY;
+    function beginDrag(clientX, clientY) {
+      active    = true;
+      startMX   = clientX;
+      startMY   = clientY;
       startLeft = parseFloat(el.style.left) || 0;
       startTop  = parseFloat(el.style.top)  || 0;
       el.classList.add('dragging');
-      e.preventDefault();
-    });
+    }
 
-    // touch support
-    el.addEventListener('touchstart', e => {
-      const t = e.touches[0];
-      active = true;
-      startMouseX = t.clientX;
-      startMouseY = t.clientY;
-      startLeft = parseFloat(el.style.left) || 0;
-      startTop  = parseFloat(el.style.top)  || 0;
-      el.classList.add('dragging');
-      e.preventDefault();
-    }, { passive: false });
+    el.addEventListener('mousedown',  e => { beginDrag(e.clientX, e.clientY); e.preventDefault(); });
+    el.addEventListener('touchstart', e => { beginDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); },
+                        { passive: false });
 
-    function onMove(clientX, clientY) {
-      if (!active) return;
-      if (el.dataset.page !== activeTab) return;
-
+    function moveDrag(clientX, clientY) {
+      if (!active || el.dataset.page !== activeTab) return;
       const page = el.dataset.page;
       const s    = getScale(page);
       const img  = document.getElementById('img-' + page);
       const rect = img.getBoundingClientRect();
 
-      const dx = clientX - startMouseX;
-      const dy = clientY - startMouseY;
-      const yonly = el.dataset.yonly === 'true';
-
-      // For Y-only, lock horizontal to card center (no X movement)
-      const newLeft = yonly
-        ? startLeft
-        : Math.max(0, Math.min(rect.width, startLeft + dx));
-      const newTop = Math.max(0, Math.min(rect.height, startTop + dy));
+      const newLeft = Math.max(0, Math.min(rect.width,  startLeft + clientX - startMX));
+      const newTop  = Math.max(0, Math.min(rect.height, startTop  + clientY - startMY));
 
       el.style.left = newLeft + 'px';
       el.style.top  = newTop  + 'px';
 
-      // Convert back to mm
-      const x_mm = yonly
-        ? parseFloat(el.dataset.fx || 0)
-        : Math.round((newLeft / s) * 10) / 10;
-      const y_mm = Math.round((newTop / s) * 10) / 10;
-
-      if (!yonly && el.dataset.cx) coords[el.dataset.cx] = x_mm;
+      const x_mm = Math.round(newLeft / s * 10) / 10;
+      const y_mm = Math.round(newTop  / s * 10) / 10;
+      coords[el.dataset.cx] = x_mm;
       coords[el.dataset.cy] = y_mm;
-
-      refreshLabel(el, x_mm, y_mm, yonly);
+      updateCoordLabel(el, x_mm, y_mm);
     }
 
-    document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-    document.addEventListener('touchmove', e => {
-      onMove(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
+    function endDrag() { if (active) { active = false; el.classList.remove('dragging'); } }
 
-    function onUp() {
-      if (active) {
-        active = false;
-        el.classList.remove('dragging');
-      }
-    }
-    document.addEventListener('mouseup',    onUp);
-    document.addEventListener('touchend',   onUp);
-    document.addEventListener('touchcancel',onUp);
+    document.addEventListener('mousemove',   e => moveDrag(e.clientX, e.clientY));
+    document.addEventListener('touchmove',   e => moveDrag(e.touches[0].clientX, e.touches[0].clientY),
+                               { passive: false });
+    document.addEventListener('mouseup',     endDrag);
+    document.addEventListener('touchend',    endDrag);
+    document.addEventListener('touchcancel', endDrag);
   });
 }
 
-// ── Tab switching ────────────────────────────────────────
+// ── Tab switching ─────────────────────────────────────────────
 function showTab(page) {
   activeTab = page;
-  const pages = ['cover', 'data'];
-  pages.forEach(p => {
+  ['cover','data'].forEach(p => {
     document.getElementById('page-' + p).style.display = p === page ? 'inline-block' : 'none';
     document.getElementById('tab-'  + p).classList.toggle('active', p === page);
   });
-  // Small delay so layout is stable before positioning
   setTimeout(() => positionAll(page), 30);
 }
 
-// ── Save coords ──────────────────────────────────────────
+// ── Save ──────────────────────────────────────────────────────
 async function saveAll() {
   const btn    = document.getElementById('save-btn');
   const status = document.getElementById('status');
   btn.disabled = true;
-  status.textContent = 'Bezig met opslaan…';
+  status.textContent = 'Bezig…';
   try {
-    const resp = await fetch('/save-coords', {
-      method:  'POST',
+    const r    = await fetch('/save-coords', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(coords),
+      body: JSON.stringify(coords),
     });
-    const data = await resp.json();
+    const data = await r.json();
     if (data.ok) {
       if (data.written_to_static) {
         status.textContent = '✓ Opgeslagen in static/coords.json';
         document.getElementById('json-panel').style.display = 'none';
       } else {
-        status.textContent = '⚠ Opgeslagen in /tmp — zie JSON hieronder';
+        status.textContent = '⚠ Niet in static/ — zie JSON hieronder';
         document.getElementById('json-output').textContent = data.coords_json;
         document.getElementById('json-panel').style.display = 'block';
       }
       setTimeout(() => { if (status.textContent.startsWith('✓')) status.textContent = ''; }, 4000);
     } else {
-      status.textContent = '✗ Fout: ' + (data.error || 'onbekend');
+      status.textContent = '✗ ' + (data.error || 'onbekend');
     }
   } catch (err) {
     status.textContent = '✗ ' + err.message;
@@ -555,72 +511,55 @@ async function saveAll() {
 }
 
 function copyJson() {
-  const text = document.getElementById('json-output').textContent;
-  navigator.clipboard.writeText(text).then(() => {
+  navigator.clipboard.writeText(document.getElementById('json-output').textContent).then(() => {
     const btn = document.querySelector('.copy-btn');
     btn.textContent = '✓ Gekopieerd!';
     setTimeout(() => btn.textContent = '📋 Kopieer JSON', 2000);
   });
 }
 
-// ── Missing image handler ────────────────────────────────
+// ── Missing template handler ──────────────────────────────────
 function handleMissingImg(img, page) {
   const wrap = img.parentElement;
   img.remove();
-  const placeholder = document.createElement('div');
-  placeholder.className = 'no-template';
-  placeholder.innerHTML = `
-    <div>
-      <p style="font-size:20px; margin-bottom:8px;">⚠️</p>
-      <p>Template <strong>${page}_template.jpg</strong> niet gevonden</p>
-      <p style="margin-top:6px; font-size:12px; color:#6b7280;">
-        Upload het bestand naar <code>static/${page}_template.jpg</code> in je repository
-      </p>
-    </div>`;
-  wrap.insertBefore(placeholder, wrap.firstChild);
+  const ph = document.createElement('div');
+  ph.className = 'no-template';
+  ph.innerHTML = `<div>
+    <p style="font-size:22px;margin-bottom:10px">⚠️</p>
+    <p>${page}_template.jpg niet gevonden in static/</p>
+    <p style="font-size:11px;color:#6b7280;margin-top:6px">Upload het bestand naar static/${page}_template.jpg in je repo</p>
+  </div>`;
+  wrap.insertBefore(ph, wrap.firstChild);
 }
 
-// ── Init ─────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────
 async function init() {
-  // Load current coords from app
   try {
     const r = await fetch('/get-coords');
-    coords   = await r.json();
+    coords  = await r.json();
   } catch (e) {
     console.warn('Kon coördinaten niet laden:', e);
   }
 
   const imgCover = document.getElementById('img-cover');
   const imgData  = document.getElementById('img-data');
+  let loaded = 0;
 
-  // Position as soon as both images are loaded
-  let loadCount = 0;
-  function onImgLoad() {
-    loadCount++;
-    if (loadCount >= 2) {
+  function onLoad() {
+    if (++loaded >= 2) {
       positionAll('cover');
       positionAll('data');
     }
   }
 
-  if (imgCover.complete && imgCover.naturalWidth > 0) onImgLoad();
-  else imgCover.addEventListener('load', onImgLoad);
+  if (imgCover.complete && imgCover.naturalWidth > 0) onLoad();
+  else imgCover.addEventListener('load', onLoad);
 
-  if (imgData.complete && imgData.naturalWidth > 0) onImgLoad();
-  else imgData.addEventListener('load', onImgLoad);
-
-  // Edge case: images already loaded before listener attached
-  if (loadCount === 0 && imgCover.complete && imgData.complete) {
-    positionAll('cover');
-    positionAll('data');
-  }
+  if (imgData.complete && imgData.naturalWidth > 0) onLoad();
+  else imgData.addEventListener('load', onLoad);
 
   setupDrags();
-
-  // Reposition on window resize
-  window.addEventListener('resize', () => {
-    positionAll(activeTab);
-  });
+  window.addEventListener('resize', () => positionAll(activeTab));
 }
 
 init();

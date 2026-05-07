@@ -285,6 +285,76 @@
 
   .badge.green { background: var(--green-light); color: var(--green); }
 
+  /* ── Merge bar ───────────────────────────── */
+  .merge-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #7d5d00;
+  }
+  .merge-bar.visible { display: flex; }
+  .merge-bar .merge-count { font-weight: 700; }
+  .btn-merge {
+    padding: 5px 14px;
+    background: var(--dark);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .btn-merge:hover { background: #333; }
+
+  /* ── Merged row ──────────────────────────── */
+  tr.merged-row td { background: #f0faf5; }
+  .merged-badge {
+    display: inline-block;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .btn-unmerge {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+  .btn-unmerge:hover { border-color: #e53935; color: #e53935; }
+  .reach-input {
+    width: 90px;
+    padding: 4px 6px;
+    border: 1px solid #ffe082;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+    background: #fff;
+    text-align: center;
+  }
+  .reach-input:focus { outline: none; border-color: var(--green); }
+  .reach-note {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+
   /* ── Clarity summary strip ───────────────── */
   .clarity-strip {
     display: flex;
@@ -541,16 +611,24 @@
         </div>
       </div>
 
+      <!-- Merge action bar (visible when 2+ rows selected for merge) -->
+      <div class="merge-bar" id="merge-bar">
+        <span>Samenvoegen:</span>
+        <span class="merge-count" id="merge-count">0 rijen geselecteerd</span>
+        <button class="btn-merge" onclick="mergeSelected()">⊕ Samenvoegen</button>
+      </div>
+
       <!-- Vacancy rows -->
       <table class="vacancy-table" id="vacancy-table">
         <thead>
           <tr>
-            <th style="width:36px"></th>
+            <th style="width:36px" title="Opnemen in rapport">✓</th>
+            <th style="width:28px" title="Selecteer rijen om samen te voegen">⊕</th>
             <th>Weergavetitel</th>
             <th>Clarity-pagina (sessies)</th>
-            <th style="width:100px">Sollicitaties</th>
+            <th style="width:90px">Sollicitaties</th>
             <th style="width:100px">Weergaven</th>
-            <th style="width:90px">Bereik</th>
+            <th style="width:110px">Bereik</th>
           </tr>
         </thead>
         <tbody id="vacancy-body">
@@ -725,7 +803,15 @@ document.getElementById('btn-parse').addEventListener('click', async () => {
   }
 });
 
-// ── STEP 2: Build vacancy table ────────────────────────
+// ── STEP 2: State-based row management ────────────────────
+// Each row: { id, type:'single'|'merged', enabled, titel,
+//             start_date, end_date, impressions, reach,
+//             manualReach (for merged), sources:[adSet,...] }
+let rows = [];
+let _rowCounter = 0;
+
+function newId() { return 'r' + (++_rowCounter); }
+
 function buildStep2() {
   const { clarity, meta } = parsedData;
 
@@ -737,68 +823,192 @@ function buildStep2() {
     document.getElementById('cs-daterange').textContent = clarity.date_range || '';
   }
 
-  const tbody = document.getElementById('vacancy-body');
-  tbody.innerHTML = '';
+  // Init rows from meta
+  rows = meta.map(adSet => ({
+    id: newId(),
+    type: 'single',
+    enabled: true,
+    titel: adSet.name,
+    start_date: adSet.start_date,
+    end_date: adSet.end_date,
+    impressions: adSet.impressions,
+    reach: adSet.reach,
+    manualReach: adSet.reach,
+    sources: [adSet],
+  }));
 
+  renderRows();
+}
+
+function renderRows() {
+  const { clarity } = parsedData;
   const pages = (clarity && clarity.pages) || [];
 
-  // Build page options for the dropdown
   const pageOptions = pages.map(p => {
     const label = p.url.split('/').pop().replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     return `<option value="${p.url}" data-sessions="${p.sessions}">${label} (${fmtNum(p.sessions)} sessies)</option>`;
   }).join('');
   const noPageOption = `<option value="">— Geen Clarity-pagina —</option>`;
 
-  meta.forEach((adSet, idx) => {
-    const matched = bestClarityMatch(adSet.name, pages);
+  const tbody = document.getElementById('vacancy-body');
+  tbody.innerHTML = '';
 
+  rows.forEach(row => {
     const tr = document.createElement('tr');
-    tr.id = `vrow-${idx}`;
+    tr.id = `vrow-${row.id}`;
+    if (row.type === 'merged') tr.classList.add('merged-row');
+    if (!row.enabled) tr.classList.add('disabled-row');
+
+    // Bereik cell: static badge for single rows, input for merged
+    const bereikCell = row.type === 'merged'
+      ? `<div>
+           <input class="reach-input" type="number" id="reach-${row.id}"
+                  value="${row.manualReach}" min="0"
+                  title="Vul het gededupliceerde bereik in vanuit Meta"
+                  oninput="updateReach('${row.id}')">
+           <div class="reach-note">Vul in vanuit Meta<br>(gededupliceerd bereik)</div>
+         </div>`
+      : `<span class="badge">${fmtNum(row.reach)}</span>`;
+
+    // Title cell: with "samengevoegd" badge + unmerge button for merged rows
+    const titleExtra = row.type === 'merged'
+      ? `<span class="merged-badge">samengevoegd</span>
+         <button class="btn-unmerge" onclick="unmergeRow('${row.id}')" title="Samenvoegen ongedaan maken">✕ splits</button>`
+      : '';
+
     tr.innerHTML = `
-      <td><input type="checkbox" id="chk-${idx}" checked onchange="toggleRow(${idx})"></td>
-      <td><input type="text" id="title-${idx}" value="${adSet.name}"></td>
+      <td><input type="checkbox" id="chk-${row.id}" ${row.enabled ? 'checked' : ''}
+                 onchange="toggleRow('${row.id}')"></td>
+      <td style="text-align:center">
+        <input type="checkbox" id="mchk-${row.id}" class="merge-chk"
+               title="Selecteer voor samenvoegen"
+               onchange="onMergeSelectChange()"
+               style="accent-color: var(--dark);">
+      </td>
       <td>
-        <select id="page-${idx}" onchange="updateSessions(${idx})">
+        <input type="text" id="title-${row.id}" value="${row.titel}">
+        ${titleExtra}
+      </td>
+      <td>
+        <select id="page-${row.id}" onchange="updateSessions('${row.id}')">
           ${noPageOption}${pageOptions}
         </select>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="sessions-disp-${idx}"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="sessions-disp-${row.id}"></div>
       </td>
-      <td><input type="number" id="soll-${idx}" min="0" value="0" style="text-align:center"></td>
-      <td><span class="badge green">${fmtNum(adSet.impressions)}</span></td>
-      <td><span class="badge">${fmtNum(adSet.reach)}</span></td>
+      <td><input type="number" id="soll-${row.id}" min="0" value="0" style="text-align:center"></td>
+      <td><span class="badge green">${fmtNum(row.impressions)}</span></td>
+      <td>${bereikCell}</td>
     `;
     tbody.appendChild(tr);
 
-    // Auto-select best match
+    // Auto-select best Clarity match for the first source
+    const matched = bestClarityMatch(row.sources[0].name, (parsedData.clarity && parsedData.clarity.pages) || []);
     if (matched) {
-      const sel = document.getElementById(`page-${idx}`);
+      const sel = document.getElementById(`page-${row.id}`);
       for (let i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === matched.url) {
-          sel.selectedIndex = i;
-          break;
-        }
+        if (sel.options[i].value === matched.url) { sel.selectedIndex = i; break; }
       }
-      updateSessions(idx);
+      updateSessions(row.id);
     }
   });
+
+  updateMergeBar();
 }
 
-function toggleRow(idx) {
-  const row = document.getElementById(`vrow-${idx}`);
-  row.classList.toggle('disabled-row', !document.getElementById(`chk-${idx}`).checked);
+function toggleRow(id) {
+  const row = rows.find(r => r.id === id);
+  if (row) row.enabled = document.getElementById(`chk-${id}`).checked;
+  document.getElementById(`vrow-${id}`).classList.toggle('disabled-row', !row.enabled);
 }
 
-function updateSessions(idx) {
-  const sel = document.getElementById(`page-${idx}`);
+function updateSessions(id) {
+  const sel = document.getElementById(`page-${id}`);
   const opt = sel.options[sel.selectedIndex];
   const s = opt ? opt.getAttribute('data-sessions') : null;
-  const disp = document.getElementById(`sessions-disp-${idx}`);
-  disp.textContent = s ? `${fmtNum(s)} sessies` : '';
+  const disp = document.getElementById(`sessions-disp-${id}`);
+  if (disp) disp.textContent = s ? `${fmtNum(s)} sessies` : '';
+}
+
+function updateReach(id) {
+  const row = rows.find(r => r.id === id);
+  if (row) row.manualReach = parseInt(document.getElementById(`reach-${id}`).value) || 0;
+}
+
+// ── Merge selection ────────────────────────────────────
+function onMergeSelectChange() {
+  updateMergeBar();
+}
+
+function updateMergeBar() {
+  const checked = document.querySelectorAll('.merge-chk:checked').length;
+  const bar = document.getElementById('merge-bar');
+  bar.classList.toggle('visible', checked >= 2);
+  document.getElementById('merge-count').textContent =
+    checked === 0 ? '' : `${checked} rijen geselecteerd`;
+}
+
+function mergeSelected() {
+  const selectedIds = [...document.querySelectorAll('.merge-chk:checked')]
+    .map(el => el.id.replace('mchk-', ''));
+
+  if (selectedIds.length < 2) return;
+
+  const selectedRows = selectedIds.map(id => rows.find(r => r.id === id)).filter(Boolean);
+
+  // Collect all original sources
+  const allSources = selectedRows.flatMap(r => r.sources);
+
+  // Sum impressions; take earliest start, latest end
+  const totalImpressions = selectedRows.reduce((sum, r) => sum + r.impressions, 0);
+  const maxReach = Math.max(...selectedRows.map(r => r.reach));
+  const startDate = selectedRows.map(r => r.start_date).sort()[0];
+  const endDate   = selectedRows.map(r => r.end_date).sort().reverse()[0];
+
+  const mergedRow = {
+    id: newId(),
+    type: 'merged',
+    enabled: true,
+    titel: selectedRows[0].titel,   // user can edit
+    start_date: startDate,
+    end_date: endDate,
+    impressions: totalImpressions,
+    reach: maxReach,
+    manualReach: maxReach,           // user fills in deduplicated value
+    sources: allSources,
+  };
+
+  // Replace selected rows with merged row at the position of the first selected row
+  const firstIdx = rows.findIndex(r => r.id === selectedIds[0]);
+  rows = rows.filter(r => !selectedIds.includes(r.id));
+  rows.splice(firstIdx, 0, mergedRow);
+
+  renderRows();
+}
+
+function unmergeRow(id) {
+  const row = rows.find(r => r.id === id);
+  if (!row || row.type !== 'merged') return;
+
+  const idx = rows.findIndex(r => r.id === id);
+  const restored = row.sources.map(src => ({
+    id: newId(),
+    type: 'single',
+    enabled: true,
+    titel: src.name,
+    start_date: src.start_date,
+    end_date: src.end_date,
+    impressions: src.impressions,
+    reach: src.reach,
+    manualReach: src.reach,
+    sources: [src],
+  }));
+
+  rows.splice(idx, 1, ...restored);
+  renderRows();
 }
 
 document.getElementById('btn-to-step3').addEventListener('click', () => {
-  const checked = parsedData.meta.some((_, i) => document.getElementById(`chk-${i}`)?.checked);
-  if (!checked) {
+  if (!rows.some(r => r.enabled)) {
     showError('step2-error', '❌ Selecteer minstens één vacature.');
     return;
   }
@@ -847,22 +1057,25 @@ async function generatePDF() {
     const pages = (clarity && clarity.pages) || [];
 
     const vacatures = [];
-    meta.forEach((adSet, idx) => {
-      if (!document.getElementById(`chk-${idx}`)?.checked) return;
+    rows.forEach(row => {
+      if (!row.enabled) return;
 
-      const pageUrl = document.getElementById(`page-${idx}`).value;
+      const pageUrl = document.getElementById(`page-${row.id}`)?.value || '';
       const matchedPage = pages.find(p => p.url === pageUrl);
+      const reach = row.type === 'merged'
+        ? (parseInt(document.getElementById(`reach-${row.id}`)?.value) || row.manualReach || 0)
+        : row.reach;
 
       vacatures.push({
-        titel: document.getElementById(`title-${idx}`).value || adSet.name,
-        start_date: adSet.start_date,
-        end_date: adSet.end_date,
-        sessions: matchedPage ? matchedPage.sessions : 0,
-        impressions: adSet.impressions,
-        reach: adSet.reach,
-        sollicitaties: parseInt(document.getElementById(`soll-${idx}`).value) || 0,
+        titel:       document.getElementById(`title-${row.id}`)?.value || row.titel,
+        start_date:  row.start_date,
+        end_date:    row.end_date,
+        sessions:    matchedPage ? matchedPage.sessions : 0,
+        impressions: row.impressions,
+        reach:       reach,
+        sollicitaties: parseInt(document.getElementById(`soll-${row.id}`)?.value) || 0,
         scroll_depth: clarity ? clarity.scroll_depth : 0,
-        avg_time: clarity ? clarity.avg_time : 0,
+        avg_time:    clarity ? clarity.avg_time : 0,
       });
     });
 
